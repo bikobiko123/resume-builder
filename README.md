@@ -140,5 +140,5 @@ https://YOUR_USERNAME.github.io/resume-builder/
 
 ## 致谢
 
-- 设计灵感来自传统 A4 简历布局
+- 本项目简历模板设计灵感来自 [imprecv](https://github.com/jskherman/imprecv) - 一个优雅的 Typst 简历模板项目，感谢原作者的出色设计
 - 感谢 React 和 Vite 团队提供的优秀工具
