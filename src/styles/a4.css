@@ -1,0 +1,321 @@
+.preview-panel {
+  min-width: 0;
+}
+
+.a4-stage {
+  border: 1px solid #d6dee6;
+  border-radius: 14px;
+  background: linear-gradient(170deg, #f0f4f7 0%, #e8edf1 100%);
+  min-height: calc(100vh - 130px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 18px;
+  overflow: auto;
+}
+
+.a4-page {
+  width: 210mm;
+  height: 297mm;
+  background: #fff;
+  box-shadow: 0 16px 50px rgba(24, 47, 71, 0.18);
+  border: 1px solid #d5dde6;
+  overflow: hidden;
+  position: relative;
+}
+
+.a4-content {
+  width: 100%;
+  min-height: 100%;
+  padding: 15mm;
+  transform-origin: top left;
+  color: #000;
+  font-size: 10pt;
+  line-height: 1.5;
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
+}
+
+/* Header - Centered (imprecv style) */
+.resume-header {
+  text-align: center;
+  padding-bottom: 8px;
+  margin-bottom: 0;
+}
+
+.resume-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: 1.2;
+}
+
+.resume-titles {
+  font-size: 12px;
+  font-weight: 400;
+  font-style: italic;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.resume-location {
+  font-size: 10px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.resume-contact {
+  font-size: 10px;
+  color: #000;
+  margin-bottom: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 0;
+}
+
+.resume-contact .contact-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.resume-contact .separator {
+  margin: 0 6px;
+  color: #666;
+  font-size: 8px;
+}
+
+.resume-summary {
+  font-size: 10px;
+  color: #333;
+  line-height: 1.6;
+  margin-top: 8px;
+  text-align: left;
+}
+
+/* Photo (optional) */
+.resume-header-with-photo {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: start;
+  text-align: left;
+}
+
+.resume-header-with-photo .header-content {
+  text-align: center;
+}
+
+.avatar-box {
+  width: 22mm;
+  height: 22mm;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #000;
+  background: #fff;
+}
+
+.avatar-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Section - imprecv style */
+.resume-section {
+  margin-top: 12px;
+}
+
+.resume-section h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #000;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 2px;
+}
+
+/* Entry layout (work, education, project, etc.) */
+.entry {
+  margin-bottom: 10px;
+  break-inside: avoid;
+}
+
+.entry:last-child {
+  margin-bottom: 0;
+}
+
+.entry-line1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.entry-org {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.entry-location {
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.entry-line2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.entry-position {
+  font-style: italic;
+  font-size: 10px;
+}
+
+.entry-date {
+  font-size: 10px;
+  color: #333;
+}
+
+.entry-highlights {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.entry-highlights li {
+  font-size: 10px;
+  line-height: 1.5;
+  margin-bottom: 2px;
+  color: #000;
+}
+
+.entry-highlights li:last-child {
+  margin-bottom: 0;
+}
+
+/* Education specific */
+.edu-degree {
+  font-style: italic;
+  font-size: 10px;
+}
+
+.edu-details {
+  font-size: 10px;
+  color: #333;
+  margin-top: 2px;
+}
+
+.edu-details .detail-item {
+  margin-bottom: 2px;
+}
+
+/* Skills section */
+.skills-content {
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.skill-category {
+  margin-bottom: 4px;
+}
+
+.skill-category:last-child {
+  margin-bottom: 0;
+}
+
+.skill-label {
+  font-weight: 700;
+}
+
+/* Certificate, Award entries */
+.cert-line1,
+.award-line1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.cert-name,
+.award-title {
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.cert-issuer,
+.award-issuer {
+  font-size: 10px;
+}
+
+.cert-issuer em,
+.award-issuer em {
+  font-style: italic;
+}
+
+/* Custom section (fallback) */
+.custom-content {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Print styles */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 210mm;
+    height: 297mm;
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #print-root,
+  #print-root * {
+    visibility: visible;
+  }
+
+  .app-shell {
+    padding: 0;
+  }
+
+  #print-root {
+    position: fixed;
+    inset: 0;
+  }
+
+  .a4-stage {
+    padding: 0;
+    min-height: auto;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .a4-page {
+    margin: 0;
+    box-shadow: none;
+    border: 0;
+  }
+
+  .a4-content {
+    padding: 15mm;
+  }
+}
