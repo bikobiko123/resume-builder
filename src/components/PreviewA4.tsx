@@ -1,5 +1,13 @@
-import { useLayoutEffect, useRef } from 'react';
-import type { ResumeState, WorkEntry, EducationEntry, ProjectEntry, AwardEntry, CertificateEntry } from '../types/resume';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import {
+  DEFAULT_RESUME_FONT_SIZE_PT,
+  type ResumeState,
+  type WorkEntry,
+  type EducationEntry,
+  type ProjectEntry,
+  type AwardEntry,
+  type CertificateEntry,
+} from '../types/resume';
 
 interface PreviewA4Props {
   resume: ResumeState;
@@ -35,6 +43,12 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
 
   const { personal } = resume;
   const shouldShowPhoto = resume.showPhoto && resume.photo?.src;
+  const fontScale = resume.fontSizePt / DEFAULT_RESUME_FONT_SIZE_PT;
+  const contentStyle = {
+    transform: `scale(${fitScale})`,
+    '--resume-font-size': `${resume.fontSizePt}pt`,
+    '--resume-font-scale': fontScale.toFixed(3),
+  } as CSSProperties;
 
   // Build contact items array based on visibility toggles
   const contactItems: string[] = [];
@@ -57,7 +71,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
     <section className="preview-panel" id="print-root">
       <div className="a4-stage">
         <div className="a4-page" ref={frameRef}>
-          <div className="a4-content" ref={contentRef} style={{ transform: `scale(${fitScale})` }}>
+          <div className="a4-content" ref={contentRef} style={contentStyle}>
             {/* Header - imprecv style */}
             <header className={shouldShowPhoto ? 'resume-header resume-header-with-photo' : 'resume-header'}>
               <div className="header-content">

@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { MAX_RESUME_FONT_SIZE_PT, MIN_RESUME_FONT_SIZE_PT } from '../types/resume';
 
 interface ToolbarProps {
   onExport: () => void;
@@ -10,6 +11,8 @@ interface ToolbarProps {
   activeVersionName: string;
   fitScale: number;
   isScaleLow: boolean;
+  fontSizePt: number;
+  onFontSizeChange: (fontSizePt: number) => void;
 }
 
 const Toolbar = ({
@@ -22,6 +25,8 @@ const Toolbar = ({
   activeVersionName,
   fitScale,
   isScaleLow,
+  fontSizePt,
+  onFontSizeChange,
 }: ToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +51,18 @@ const Toolbar = ({
         <p className="toolbar-subtle">当前版本：{activeVersionName}</p>
       </div>
       <div className="toolbar-actions">
+        <label className="font-size-control">
+          <span>字号 {fontSizePt.toFixed(1)}pt</span>
+          <input
+            type="range"
+            min={MIN_RESUME_FONT_SIZE_PT}
+            max={MAX_RESUME_FONT_SIZE_PT}
+            step="0.1"
+            value={fontSizePt}
+            onChange={(event) => onFontSizeChange(Number(event.target.value))}
+            aria-label="调整简历字号"
+          />
+        </label>
         <span className={isScaleLow ? 'scale-status scale-status-warn' : 'scale-status'}>
           当前缩放 {Math.round(fitScale * 100)}%
         </span>

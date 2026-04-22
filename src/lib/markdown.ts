@@ -10,7 +10,7 @@ import type {
   SkillGroup,
   Language,
 } from '../types/resume';
-import { createResumeSection } from '../types/resume';
+import { createResumeSection, normalizeResumeFontSize } from '../types/resume';
 
 // Export resume to Markdown format
 export const exportToMarkdown = (resume: ResumeState): string => {
@@ -30,6 +30,7 @@ export const exportToMarkdown = (resume: ResumeState): string => {
     showAddress: resume.showAddress,
     showPhone: resume.showPhone,
     showTitle: resume.showTitle,
+    fontSizePt: resume.fontSizePt,
     updatedAt: resume.updatedAt,
   };
 
@@ -294,6 +295,7 @@ export const importFromMarkdown = (content: string): Partial<ResumeState> | null
         profiles: [],
       },
       sections,
+      fontSizePt: normalizeResumeFontSize(frontmatter.fontSizePt),
       showPhoto: (frontmatter.showPhoto as boolean) ?? false,
       showAddress: (frontmatter.showAddress as boolean) ?? true,
       showPhone: (frontmatter.showPhone as boolean) ?? true,

@@ -27,53 +27,53 @@
 .a4-content {
   width: 100%;
   min-height: 100%;
-  padding: 15mm;
+  padding: 14mm;
   transform-origin: top left;
   color: #000;
-  font-size: 10pt;
-  line-height: 1.5;
+  font-size: var(--resume-font-size, 11pt);
+  line-height: 1.42;
   font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
 }
 
 /* Header - Centered (imprecv style) */
 .resume-header {
   text-align: center;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   margin-bottom: 0;
 }
 
 .resume-header h1 {
-  font-size: 22px;
+  font-size: calc(24px * var(--resume-font-scale, 1));
   font-weight: 700;
   color: #000;
   margin: 0 0 6px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .resume-titles {
-  font-size: 12px;
+  font-size: calc(13px * var(--resume-font-scale, 1));
   font-weight: 400;
   font-style: italic;
   color: #333;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .resume-location {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
   color: #333;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .resume-contact {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
   color: #000;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 0;
+  gap: 3px 0;
 }
 
 .resume-contact .contact-item {
@@ -84,14 +84,14 @@
 .resume-contact .separator {
   margin: 0 6px;
   color: #666;
-  font-size: 8px;
+  font-size: calc(8px * var(--resume-font-scale, 1));
 }
 
 .resume-summary {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
   color: #333;
-  line-height: 1.6;
-  margin-top: 8px;
+  line-height: 1.5;
+  margin-top: 6px;
   text-align: left;
 }
 
@@ -125,12 +125,12 @@
 
 /* Section - imprecv style */
 .resume-section {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .resume-section h2 {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 6px;
+  font-size: calc(13px * var(--resume-font-scale, 1));
   font-weight: 700;
   color: #000;
   text-transform: uppercase;
@@ -141,7 +141,7 @@
 
 /* Entry layout (work, education, project, etc.) */
 .entry {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   break-inside: avoid;
 }
 
@@ -158,28 +158,28 @@
 
 .entry-org {
   font-weight: 700;
-  font-size: 11px;
+  font-size: calc(12px * var(--resume-font-scale, 1));
 }
 
 .entry-location {
   font-weight: 700;
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
 }
 
 .entry-line2 {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .entry-position {
   font-style: italic;
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
 }
 
 .entry-date {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
   color: #333;
 }
 
@@ -190,9 +190,9 @@
 }
 
 .entry-highlights li {
-  font-size: 10px;
-  line-height: 1.5;
-  margin-bottom: 2px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
+  line-height: 1.38;
+  margin-bottom: 1px;
   color: #000;
 }
 
@@ -203,13 +203,13 @@
 /* Education specific */
 .edu-degree {
   font-style: italic;
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
 }
 
 .edu-details {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
   color: #333;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .edu-details .detail-item {
@@ -218,12 +218,12 @@
 
 /* Skills section */
 .skills-content {
-  font-size: 10px;
-  line-height: 1.6;
+  font-size: calc(11px * var(--resume-font-scale, 1));
+  line-height: 1.5;
 }
 
 .skill-category {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .skill-category:last-child {
@@ -245,12 +245,12 @@
 .cert-name,
 .award-title {
   font-weight: 700;
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
 }
 
 .cert-issuer,
 .award-issuer {
-  font-size: 10px;
+  font-size: calc(11px * var(--resume-font-scale, 1));
 }
 
 .cert-issuer em,
@@ -260,8 +260,8 @@
 
 /* Custom section (fallback) */
 .custom-content {
-  font-size: 10px;
-  line-height: 1.5;
+  font-size: calc(11px * var(--resume-font-scale, 1));
+  line-height: 1.42;
 }
 
 /* Print styles */
@@ -316,6 +316,6 @@
   }
 
   .a4-content {
-    padding: 15mm;
+    padding: 14mm;
   }
 }

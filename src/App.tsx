@@ -22,6 +22,7 @@ import { exportToMarkdown, downloadMarkdown, parseMarkdownFile, importFromMarkdo
 import {
   createDefaultResumeState,
   createResumeSection,
+  normalizeResumeFontSize,
   type ResumeState,
   type SectionType,
   type PhotoData,
@@ -196,6 +197,14 @@ const App = () => {
     setResume((prev) => ({ ...prev, showSummary: !prev.showSummary }));
   };
 
+  const updateFontSize = (fontSizePt: number) => {
+    setResume((prev) => ({
+      ...prev,
+      fontSizePt: normalizeResumeFontSize(fontSizePt),
+    }));
+    setMeasureVersion((prev) => prev + 1);
+  };
+
   // Section operations
   const addSection = (type: SectionType) => {
     setResume((prev) => ({
@@ -260,6 +269,8 @@ const App = () => {
         activeVersionName={activeVersionName}
         fitScale={fitScale}
         isScaleLow={isScaleLow}
+        fontSizePt={resume.fontSizePt}
+        onFontSizeChange={updateFontSize}
       />
 
       {isScaleLow ? (

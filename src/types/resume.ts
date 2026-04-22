@@ -150,6 +150,7 @@ export interface ResumeState {
   sections: ResumeSection[];
   photo?: PhotoData;
   updatedAt: string;
+  fontSizePt: number;
   // User preferences - visibility toggles for personal info sections
   showPhoto: boolean;
   showName: boolean;
@@ -161,6 +162,17 @@ export interface ResumeState {
   showTitle: boolean;
   showSummary: boolean;
 }
+
+export const MIN_RESUME_FONT_SIZE_PT = 9;
+export const MAX_RESUME_FONT_SIZE_PT = 13;
+export const DEFAULT_RESUME_FONT_SIZE_PT = 11;
+
+export const normalizeResumeFontSize = (value: unknown): number => {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_RESUME_FONT_SIZE_PT;
+  const clamped = Math.min(MAX_RESUME_FONT_SIZE_PT, Math.max(MIN_RESUME_FONT_SIZE_PT, numeric));
+  return Number(clamped.toFixed(1));
+};
 
 // Utility functions
 const uid = (): string => {
@@ -437,5 +449,6 @@ export const createDefaultResumeState = (): ResumeState => ({
   ],
   photo: undefined,
   updatedAt: new Date().toISOString(),
+  fontSizePt: DEFAULT_RESUME_FONT_SIZE_PT,
   ...createDefaultVisibility(),
 });

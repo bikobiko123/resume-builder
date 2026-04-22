@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeFitScale } from '../lib/fitScale';
+import { normalizeResumeFontSize } from '../types/resume';
 
 describe('computeFitScale', () => {
   it('returns 1 when content is shorter than page', () => {
@@ -16,5 +17,17 @@ describe('computeFitScale', () => {
 
   it('enforces minimum scale floor', () => {
     expect(computeFitScale(4000, 1000)).toBe(0.5);
+  });
+});
+
+describe('normalizeResumeFontSize', () => {
+  it('clamps font size to the supported range', () => {
+    expect(normalizeResumeFontSize(8)).toBe(9);
+    expect(normalizeResumeFontSize(14)).toBe(13);
+  });
+
+  it('falls back to the default for invalid values', () => {
+    expect(normalizeResumeFontSize(undefined)).toBe(11);
+    expect(normalizeResumeFontSize('not-a-size')).toBe(11);
   });
 });

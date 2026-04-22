@@ -1,4 +1,4 @@
-import { createDefaultResumeState, type ResumeState } from '../types/resume';
+import { createDefaultResumeState, normalizeResumeFontSize, type ResumeState } from '../types/resume';
 
 const LEGACY_STORAGE_KEY = 'resume_builder_v2';
 const VERSION_STORAGE_KEY = 'resume_builder_versions_v1';
@@ -58,6 +58,7 @@ const normalizeResume = (input: ResumeState): ResumeState => {
     ...input,
     personal: { ...defaults.personal, ...input.personal },
     sections: input.sections || defaults.sections,
+    fontSizePt: normalizeResumeFontSize(input.fontSizePt),
     showPhoto: input.showPhoto ?? false,
     showName: input.showName ?? true,
     showEmail: input.showEmail ?? true,
