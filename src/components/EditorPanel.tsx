@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   createCustomItem,
   createEducationEntry,
@@ -13,7 +13,7 @@ import {
   type ProjectEntry,
 } from '../types/resume';
 import PhotoUploader from './PhotoUploader';
-import { formatSkillGroupLine, parseSkillGroupLine, sanitizeSkillGroups } from '../lib/skills';
+import { formatSkillGroupLine, parseSkillGroupLine } from '../lib/skills';
 
 interface EditorPanelProps {
   resume: ResumeState;
@@ -821,6 +821,11 @@ const SkillsEditor = ({
 }) => {
   const skillGroups = section.skillGroups || [];
   const languages = section.languages || [];
+  const [skillDraft, setSkillDraft] = useState(() => skillGroups.map(formatSkillGroupLine).join('\n'));
+
+  useEffect(() => {
+    setSkillDraft(skillGroups.map(formatSkillGroupLine).join('\n'));
+  }, [section.id]);
 
   return (
     <div style={{ marginTop: '10px' }}>
@@ -829,9 +834,11 @@ const SkillsEditor = ({
         <textarea
           className="text-area"
           rows={4}
-          value={sanitizeSkillGroups(skillGroups).map(formatSkillGroupLine).join('\n')}
+          value={skillDraft}
           onChange={(e) => {
-            const lines = e.target.value.split('\n');
+            const nextDraft = e.target.value;
+            setSkillDraft(nextDraft);
+            const lines = nextDraft.split('\n');
             const newGroups = lines
               .map(parseSkillGroupLine)
               .filter((group): group is NonNullable<typeof group> => group !== null);
