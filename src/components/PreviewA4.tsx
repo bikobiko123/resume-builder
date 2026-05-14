@@ -8,6 +8,8 @@ import {
   type AwardEntry,
   type CertificateEntry,
 } from '../types/resume';
+import InlineText, { renderInlineText } from './InlineText';
+import { sanitizeSkillGroups } from '../lib/skills';
 
 interface PreviewA4Props {
   resume: ResumeState;
@@ -101,7 +103,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                 )}
 
                 {personal.summary && resume.showSummary && (
-                  <div className="resume-summary">{personal.summary}</div>
+                  <div className="resume-summary"><InlineText text={personal.summary} /></div>
                 )}
               </div>
 
@@ -137,7 +139,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                               {pos.highlights.length > 0 && pos.highlights[0] && (
                                 <ul className="entry-highlights">
                                   {pos.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                    <li key={idx}>{highlight}</li>
+                                    <li key={idx}><InlineText text={highlight} /></li>
                                   ))}
                                 </ul>
                               )}
@@ -170,18 +172,18 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                               <div className="edu-details">
                                 {entry.honors && entry.honors.length > 0 && (
                                   <div className="detail-item">
-                                    <strong>{honorsLabel}：</strong>{entry.honors.join('，')}
+                                    <strong>{honorsLabel}：</strong>{renderInlineText(entry.honors.join('，'))}
                                   </div>
                                 )}
                                 {entry.courses && entry.courses.length > 0 && (
                                   <div className="detail-item">
-                                    <strong>课程：</strong>{entry.courses.join('，')}
+                                    <strong>课程：</strong>{renderInlineText(entry.courses.join('，'))}
                                   </div>
                                 )}
                                 {entry.highlights && entry.highlights.length > 0 && entry.highlights[0] && (
                                   <ul className="entry-highlights">
                                     {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                      <li key={idx}>{highlight}</li>
+                                      <li key={idx}><InlineText text={highlight} /></li>
                                     ))}
                                   </ul>
                                 )}
@@ -208,7 +210,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                           {entry.highlights.length > 0 && entry.highlights[0] && (
                             <ul className="entry-highlights">
                               {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                <li key={idx}>{highlight}</li>
+                                <li key={idx}><InlineText text={highlight} /></li>
                               ))}
                             </ul>
                           )}
@@ -233,7 +235,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                           {entry.highlights && entry.highlights.length > 0 && entry.highlights[0] && (
                             <ul className="entry-highlights">
                               {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                <li key={idx}>{highlight}</li>
+                                <li key={idx}><InlineText text={highlight} /></li>
                               ))}
                             </ul>
                           )}
@@ -266,13 +268,13 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                       {section.languages && section.languages.length > 0 && (
                         <div className="skill-category">
                           <span className="skill-label">语言：</span>
-                          {section.languages.map(l => `${l.language} (${l.fluency})`).join('，')}
+                          {renderInlineText(section.languages.map(l => `${l.language} (${l.fluency})`).join('，'))}
                         </div>
                       )}
-                      {section.skillGroups?.map((group, idx) => (
+                      {sanitizeSkillGroups(section.skillGroups).map((group, idx) => (
                         <div key={idx} className="skill-category">
                           <span className="skill-label">{group.category}：</span>
-                          {group.skills.join('，')}
+                          {renderInlineText(group.skills.join('，'))}
                         </div>
                       ))}
                       {section.interests && section.interests.length > 0 && (
@@ -291,7 +293,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                         .map((item) => item.text.trim())
                         .filter(Boolean)
                         .map((text, index) => (
-                          <div key={index} style={{ marginBottom: '4px' }}>{text}</div>
+                          <div key={index} style={{ marginBottom: '4px' }}><InlineText text={text} /></div>
                         ))}
                     </div>
                   )}

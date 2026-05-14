@@ -11,6 +11,7 @@ import type {
   Language,
 } from '../types/resume';
 import { createResumeSection, normalizeResumeFontSize } from '../types/resume';
+import { parseSkillGroupLine, sanitizeSkillGroups } from './skills';
 
 // Export resume to Markdown format
 export const exportToMarkdown = (resume: ResumeState): string => {
@@ -166,8 +167,9 @@ const exportSkillsSection = (skillGroups?: SkillGroup[], languages?: Language[])
     md += `- **语言**：${langStr}\n`;
   }
 
-  if (skillGroups) {
-    for (const group of skillGroups) {
+  const cleanGroups = sanitizeSkillGroups(skillGroups);
+  if (cleanGroups.length > 0) {
+    for (const group of cleanGroups) {
       md += `- **${group.category}**：${group.skills.join('，')}\n`;
     }
   }
@@ -588,10 +590,9 @@ const parseSkillsSection = (content: string): { skillGroups: SkillGroup[]; langu
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    const match = trimmed.match(/^- \*\*(.+?)\*\*：(.+)$/);
-    if (match) {
-      const category = match[1].trim();
-      const values = match[2].split('，').map(s => s.trim());
+    const skillGroup = parseSkillGroupLine(trimmed);
+    if (skillGroup) {
+      const { category, skills: values } = skillGroup;
 
       if (category === '语言') {
         for (const val of values) {
@@ -604,15 +605,12 @@ const parseSkillsSection = (content: string): { skillGroups: SkillGroup[]; langu
           }
         }
       } else {
-        skillGroups.push({
-          category,
-          skills: values,
-        });
+        skillGroups.push(skillGroup);
       }
     }
   }
 
-  return { skillGroups, languages };
+  return { skillGroups: sanitizeSkillGroups(skillGroups), languages };
 };
 
 // Parse awards section

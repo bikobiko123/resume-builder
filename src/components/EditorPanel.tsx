@@ -13,6 +13,7 @@ import {
   type ProjectEntry,
 } from '../types/resume';
 import PhotoUploader from './PhotoUploader';
+import { formatSkillGroupLine, parseSkillGroupLine, sanitizeSkillGroups } from '../lib/skills';
 
 interface EditorPanelProps {
   resume: ResumeState;
@@ -828,20 +829,12 @@ const SkillsEditor = ({
         <textarea
           className="text-area"
           rows={4}
-          value={skillGroups
-            .map((g) => `${g.category}: ${g.skills.join(', ')}`)
-            .join('\n')}
+          value={sanitizeSkillGroups(skillGroups).map(formatSkillGroupLine).join('\n')}
           onChange={(e) => {
             const lines = e.target.value.split('\n');
             const newGroups = lines
-              .filter((l) => l.trim())
-              .map((line) => {
-                const [category, skillsStr] = line.split(':');
-                return {
-                  category: category?.trim() || '',
-                  skills: skillsStr?.split(',').map((s) => s.trim()) || [],
-                };
-              });
+              .map(parseSkillGroupLine)
+              .filter((group): group is NonNullable<typeof group> => group !== null);
             onUpdateSection(section.id, { skillGroups: newGroups });
           }}
           placeholder="产品工具: Axure, Figma, Sketch&#10;数据分析: SQL, Python, Excel"
