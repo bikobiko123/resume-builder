@@ -111,7 +111,7 @@
 .avatar-box {
   width: 22mm;
   height: 22mm;
-  border-radius: 50%;
+  border-radius: 0;
   overflow: hidden;
   border: 2px solid #000;
   background: #fff;
