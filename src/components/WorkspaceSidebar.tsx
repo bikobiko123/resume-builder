@@ -6,6 +6,8 @@ interface WorkspaceSidebarProps {
   versions: ResumeVersionMeta[];
   onOpenVersionManager: () => void;
   onSaveVersion: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 const WorkspaceSidebar = ({
@@ -14,11 +16,14 @@ const WorkspaceSidebar = ({
   versions,
   onOpenVersionManager,
   onSaveVersion,
+  collapsed,
+  onToggleCollapse,
 }: WorkspaceSidebarProps) => (
-  <aside className="workspace-sidebar no-print" aria-label="简历工作区导航">
+  <aside className={`workspace-sidebar no-print ${collapsed ? 'workspace-sidebar-is-collapsed' : ''}`} aria-label="简历工作区导航">
     <div className="sidebar-heading">
       <span className="sidebar-eyebrow">工作区</span>
       <strong>我的简历</strong>
+      <button type="button" className="sidebar-collapse-button" onClick={onToggleCollapse} aria-label={collapsed ? '展开侧栏' : '收起侧栏'}>{collapsed ? '→' : '←'}</button>
     </div>
 
     <div className="sidebar-section-label">所有简历</div>

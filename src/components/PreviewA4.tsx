@@ -70,7 +70,7 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
   const locationStr = locationParts.join(', ');
 
   return (
-    <section className="preview-panel" id="print-root">
+    <section className="preview-document" id="print-root">
       <div className="a4-stage">
         <div className="a4-page" ref={frameRef}>
           <div className="a4-content" ref={contentRef} style={contentStyle}>

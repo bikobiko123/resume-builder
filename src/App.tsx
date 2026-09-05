@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { User } from '@supabase/supabase-js';
 import Toolbar, { type SaveStatus } from './components/Toolbar';
 import EditorPanel from './components/EditorPanel';
@@ -38,6 +38,8 @@ import {
 const App = () => {
   const [resume, setResume] = useState<ResumeState>(createDefaultResumeState);
   const [fitScale, setFitScale] = useState(1);
+  const [previewZoom, setPreviewZoom] = useState(0.72);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [measureVersion, setMeasureVersion] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [activeVersionId, setActiveVersionId] = useState('');
@@ -404,8 +406,10 @@ const App = () => {
 
       {isScaleLow ? <p className="scale-warning no-print">内容较多，当前缩放低于 72%，建议精简内容以保证可读性。</p> : null}
 
-      <main className="workspace">
+      <main className={`workspace ${sidebarCollapsed ? 'workspace-sidebar-collapsed' : ''}`}>
         <WorkspaceSidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
           personName={resume.personal.name}
           activeVersionId={activeVersionId}
           versions={versionsMeta}
@@ -438,9 +442,16 @@ const App = () => {
               <span className="preview-eyebrow">实时预览</span>
               <strong>A4 页面</strong>
             </div>
-            <span className="preview-panel-scale">{Math.round(fitScale * 100)}%</span>
+            <div className="preview-controls">
+              <button type="button" onClick={() => setPreviewZoom((zoom) => Math.max(0.45, Number((zoom - 0.1).toFixed(2))))} aria-label="缩小预览">−</button>
+              <span>{Math.round(previewZoom * 100)}%</span>
+              <button type="button" onClick={() => setPreviewZoom((zoom) => Math.min(1.4, Number((zoom + 0.1).toFixed(2))))} aria-label="放大预览">＋</button>
+              <button type="button" onClick={() => setPreviewZoom(0.72)} aria-label="重置预览缩放">重置</button>
+            </div>
           </div>
-          <PreviewA4 resume={resume} fitScale={fitScale} measureVersion={measureVersion} onMeasure={handleMeasure} />
+          <div className="preview-viewport" style={{ '--preview-zoom': previewZoom } as CSSProperties}>
+            <PreviewA4 resume={resume} fitScale={fitScale} measureVersion={measureVersion} onMeasure={handleMeasure} />
+          </div>
         </section>
       </main>
 
