@@ -2,24 +2,14 @@
   min-width: 0;
 }
 
-.a4-stage {
-  border: 1px solid #d6dee6;
-  border-radius: 14px;
-  background: linear-gradient(170deg, #f0f4f7 0%, #e8edf1 100%);
-  min-height: calc(100vh - 130px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 18px;
-  overflow: auto;
-}
+.a4-stage { background: #f5f6f5; min-height: calc(100vh - 108px); display: flex; align-items: flex-start; justify-content: center; padding: 24px 18px 48px; overflow: auto; }
 
 .a4-page {
   width: 210mm;
   height: 297mm;
   background: #fff;
-  box-shadow: 0 16px 50px rgba(24, 47, 71, 0.18);
-  border: 1px solid #d5dde6;
+  box-shadow: 0 2px 12px rgba(35, 50, 42, 0.10);
+  border: 0;
   overflow: hidden;
   position: relative;
 }

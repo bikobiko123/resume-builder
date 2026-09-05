@@ -62,10 +62,9 @@ const Toolbar = ({
 
   return (
     <header className="toolbar no-print">
-      <div>
+      <div className="toolbar-context">
         <h1>简历生成器</h1>
-        <p>A4 单页排版 + PDF/Markdown 导出</p>
-        <p className="toolbar-subtle">当前版本：{activeVersionName}</p>
+        <p className="toolbar-breadcrumb">我的简历 <span>/</span> {activeVersionName}</p>
         <div className="toolbar-status-line">
           <span className={`save-status save-status-${saveStatus}`}>{saveStatusLabel[saveStatus]}</span>
           <AuthPanel authLoading={authLoading} userEmail={userEmail} onSignedOut={onSignedOut} />
@@ -75,25 +74,20 @@ const Toolbar = ({
       <div className="toolbar-actions">
         <label className="font-size-control">
           <span>字号 {fontSizePt.toFixed(1)}pt</span>
-          <input
-            type="range"
-            min={MIN_RESUME_FONT_SIZE_PT}
-            max={MAX_RESUME_FONT_SIZE_PT}
-            step="0.1"
-            value={fontSizePt}
-            onChange={(event) => onFontSizeChange(Number(event.target.value))}
-            aria-label="调整简历字号"
-          />
+          <input type="range" min={MIN_RESUME_FONT_SIZE_PT} max={MAX_RESUME_FONT_SIZE_PT} step="0.1" value={fontSizePt} onChange={(event) => onFontSizeChange(Number(event.target.value))} aria-label="调整简历字号" />
         </label>
-        <span className={isScaleLow ? 'scale-status scale-status-warn' : 'scale-status'}>
-          当前缩放 {Math.round(fitScale * 100)}%
-        </span>
-        <button type="button" className="btn btn-light" onClick={onReset}>重置模板</button>
-        <button type="button" className="btn btn-light" onClick={() => fileInputRef.current?.click()}>导入 Markdown</button>
-        <button type="button" className="btn btn-light" onClick={onExportMarkdown}>导出 Markdown</button>
-        <button type="button" className="btn btn-light" onClick={onSaveVersion}>保存版本</button>
-        <button type="button" className="btn btn-light" onClick={onOpenVersionManager}>版本管理</button>
+        <span className={isScaleLow ? 'scale-status scale-status-warn' : 'scale-status'}>预览 {Math.round(fitScale * 100)}%</span>
         <button type="button" className="btn btn-primary" onClick={onExport}>导出 PDF</button>
+        <details className="toolbar-menu">
+          <summary aria-label="更多操作">•••</summary>
+          <div className="toolbar-menu-popover">
+            <button type="button" onClick={onReset}>重置模板</button>
+            <button type="button" onClick={() => fileInputRef.current?.click()}>导入 Markdown</button>
+            <button type="button" onClick={onExportMarkdown}>导出 Markdown</button>
+            <button type="button" onClick={onSaveVersion}>保存版本</button>
+            <button type="button" onClick={onOpenVersionManager}>版本管理</button>
+          </div>
+        </details>
         <input ref={fileInputRef} type="file" accept=".md,.markdown" onChange={handleFileChange} style={{ display: 'none' }} />
       </div>
     </header>
