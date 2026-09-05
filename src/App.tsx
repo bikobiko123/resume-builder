@@ -14,6 +14,7 @@ import {
   createSnapshotFromActive,
   deleteVersion,
   getActiveResume,
+  getLocalPersistenceError,
   listVersionsMeta,
   loadVersionStore,
   normalizeStore,
@@ -49,6 +50,7 @@ const App = () => {
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
   const [cloudReady, setCloudReady] = useState(!isSupabaseConfigured);
   const [cloudNotice, setCloudNotice] = useState('');
+  const [localNotice, setLocalNotice] = useState('');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   const localStoreRef = useRef<ResumeVersionStoreV1 | null>(null);
@@ -74,7 +76,8 @@ const App = () => {
   const syncVersionState = (store: ResumeVersionStoreV1, syncResume = false) => {
     localStoreRef.current = store;
     setActiveVersionId(store.activeVersionId);
-    setVersionsMeta(listVersionsMeta());
+    setVersionsMeta(listVersionsMeta(store));
+    setLocalNotice(getLocalPersistenceError() ?? '');
     if (syncResume) setResume(getActiveResume(store));
   };
 
@@ -153,7 +156,6 @@ const App = () => {
 
     let cancelled = false;
     const localStore = localStoreRef.current ?? loadVersionStore();
-    backupVersionStore(localStore);
     setCloudReady(false);
     setCloudNotice('正在读取云端简历…');
     setSaveStatus('saving-cloud');
@@ -169,9 +171,14 @@ const App = () => {
 
       const decision = resolveCloudBootstrap(localStore, result.data);
       if (!decision.shouldUploadLocal) {
+        if (decision.hasConflict && !backupVersionStore(localStore)) {
+          setSaveStatus('error');
+          setCloudNotice('本地与云端不同，但浏览器无法创建安全备份。已保留本地简历并暂停同步，请先导出 Markdown，再处理存储空间。');
+          return;
+        }
         pendingCloudStoreRef.current = null;
         setCloudNotice(decision.hasConflict
-          ? '检测到本地和云端都有简历数据，当前使用云端版本。本地版本仍保存在浏览器中。'
+          ? '当前使用云端版本；切换前的本地简历已保留为浏览器备份。'
           : '');
         const normalized = normalizeStore(decision.store);
         persistVersionStore(normalized);
@@ -203,7 +210,7 @@ const App = () => {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, user]);
+  }, [hydrated, user?.id]);
 
   useEffect(() => {
     if (!cloudReady || !userRef.current || !pendingCloudStoreRef.current) return;
@@ -401,7 +408,7 @@ const App = () => {
         userEmail={user?.email}
         onSignedOut={() => setUser(null)}
         saveStatus={saveStatus}
-        cloudNotice={cloudNotice}
+        cloudNotice={localNotice || cloudNotice}
       />
 
       {isScaleLow ? <p className="scale-warning no-print">内容较多，当前缩放低于 72%，建议精简内容以保证可读性。</p> : null}

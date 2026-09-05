@@ -100,9 +100,21 @@ export const isVersionStore = (value: unknown): value is ResumeVersionStoreV1 =>
   return value.versions.every(isVersionRecord);
 };
 
+let volatileStore: ResumeVersionStoreV1 | null = null;
+let persistenceError: string | null = null;
+export const getLocalPersistenceError = () => persistenceError;
+
 const persistStore = (store: ResumeVersionStoreV1): void => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(store));
+  try {
+    window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(store));
+    volatileStore = null;
+    persistenceError = null;
+  } catch {
+    // Keep editing in memory, without destroying the last durable copy.
+    volatileStore = store;
+    persistenceError = '浏览器存储已满或不可用。修改暂存在当前页面，请导出 Markdown 备份，暂勿关闭页面。';
+  }
 };
 
 export const persistVersionStore = persistStore;
@@ -194,9 +206,24 @@ export const parseVersionStore = (value: unknown): ResumeVersionStoreV1 | null =
 
 export const backupVersionStore = (store: ResumeVersionStoreV1): string | null => {
   if (typeof window === 'undefined') return null;
-  const key = `resume_builder_migration_backup_${Date.now()}`;
-  window.localStorage.setItem(key, JSON.stringify(store));
-  return key;
+  try {
+    const storage = window.localStorage;
+    const serialized = JSON.stringify(store);
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter((key): key is string => Boolean(key?.startsWith('resume_builder_migration_backup_')));
+    const duplicate = keys.find((key) => storage.getItem(key) === serialized);
+    if (duplicate) return duplicate;
+    // Never silently delete older user backups to make room.
+    if (keys.length >= 2) return null;
+    let timestamp = Date.now();
+    while (storage.getItem(`resume_builder_migration_backup_${timestamp}`)) timestamp += 1;
+    const key = `resume_builder_migration_backup_${timestamp}`;
+    storage.setItem(key, serialized);
+    return key;
+  } catch {
+    // A best-effort migration backup must never unmount the entire app.
+    return null;
+  }
 };
 
 export const loadVersionStore = (): ResumeVersionStoreV1 => {
@@ -204,21 +231,22 @@ export const loadVersionStore = (): ResumeVersionStoreV1 => {
     return createInitialStore();
   }
 
-  const rawStore = window.localStorage.getItem(VERSION_STORAGE_KEY);
+  if (volatileStore) return volatileStore;
+  let rawStore: string | null = null;
+  try { rawStore = window.localStorage.getItem(VERSION_STORAGE_KEY); } catch { /* private/restricted storage */ }
   if (rawStore) {
     try {
       const parsed: unknown = JSON.parse(rawStore);
       if (isVersionStore(parsed)) {
-        const normalized = normalizeStore(parsed);
-        persistStore(normalized);
-        return normalized;
+        return normalizeStore(parsed);
       }
     } catch {
       // Fall through and try migration path.
     }
   }
 
-  const rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  let rawLegacy: string | null = null;
+  try { rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY); } catch { /* restricted storage */ }
   let initial = createInitialStore();
   if (rawLegacy) {
     try {
@@ -232,12 +260,11 @@ export const loadVersionStore = (): ResumeVersionStoreV1 => {
   }
 
   persistStore(initial);
-  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  if (!persistenceError) window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   return initial;
 };
 
-export const listVersionsMeta = (): ResumeVersionMeta[] => {
-  const store = loadVersionStore();
+export const listVersionsMeta = (store = loadVersionStore()): ResumeVersionMeta[] => {
   return sortVersionsForDisplay(store.versions).map((version) => ({
     id: version.id,
     name: version.name,

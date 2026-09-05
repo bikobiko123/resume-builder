@@ -23,6 +23,10 @@ class MemoryStorage implements Storage {
   setItem(key: string, value: string) { this.values.set(key, value); }
 }
 
+class QuotaStorage extends MemoryStorage {
+  setItem() { throw new DOMException('quota exceeded', 'QuotaExceededError'); }
+}
+
 const localStorage = new MemoryStorage();
 Object.defineProperty(globalThis, 'window', {
   value: { localStorage },
@@ -92,5 +96,10 @@ describe('resume version storage', () => {
 
     expect(getActiveResume(saved).personal.name).toBe('只修改快照');
     expect(saved.versions.find((version) => version.kind === 'draft')?.resume.personal.name).not.toBe('只修改快照');
+  });
+
+  it('备份失败时不会抛出异常导致应用崩溃', () => {
+    Object.defineProperty(globalThis, 'window', { value: { localStorage: new QuotaStorage() }, configurable: true });
+    expect(() => backupVersionStore(createStore())).not.toThrow();
   });
 });
