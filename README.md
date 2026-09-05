@@ -35,6 +35,7 @@
 - **构建工具**: Vite 6
 - **测试**: Vitest
 - **样式**: 原生 CSS（CSS Variables）
+- **云端存储**: Supabase Auth + PostgreSQL JSONB（可选）
 
 ## 安装和运行
 
@@ -57,7 +58,7 @@ npm install
 npm run dev
 ```
 
-开发服务器默认运行在 http://localhost:5173
+开发服务器默认运行在 http://localhost:5173/resume-builder/
 
 ### 构建生产版本
 
@@ -94,18 +95,24 @@ npm run test
 - 支持创建快照、重命名、删除和切换版本
 - 最多保存 30 个历史版本
 
-## 数据存储
+## 数据存储与云端同步
 
-所有数据保存在浏览器本地存储（localStorage）中：
+应用始终保留浏览器本地存储作为快速缓存和离线兜底：
+
 - 存储键名: `resume_builder_versions_v1`
-- 支持版本管理和自动保存（300ms 防抖）
+- 自动保存使用 300ms 防抖
+- 未配置 Supabase 或未登录时，继续使用本地模式
+- 配置 Supabase 并登录后，完整的 `ResumeVersionStoreV1` 会保存到 PostgreSQL `jsonb`
+- 断网时仍可编辑，恢复网络后会自动同步
+
+云端配置、SQL、认证 URL 和 GitHub Pages Secrets 说明见 [SUPABASE.md](./SUPABASE.md)。
 
 ## 数据隐私说明
 
-- 所有简历数据仅保存在你的浏览器本地存储中，不会上传到任何服务器
-- 每个用户的数据完全隔离，互不可见
-- 清除浏览器数据或更换设备/浏览器会导致简历丢失
-- 建议定期使用「导出 Markdown」功能备份重要简历
+- 云端数据通过 Supabase Auth 按用户隔离，数据库启用 Row Level Security
+- 前端只使用 `VITE_SUPABASE_URL` 和 publishable/anon key，绝不使用 `service_role` key
+- 首次登录迁移前会保留本地备份；本地与云端同时存在且不一致时会显示提示
+- 清除浏览器数据不会删除已登录用户的云端简历，但未登录的本地数据仍建议定期用「导出 Markdown」备份
 
 ## 项目结构
 

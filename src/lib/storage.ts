@@ -93,7 +93,7 @@ const isVersionRecord = (value: unknown): value is ResumeVersionRecord => {
   );
 };
 
-const isVersionStore = (value: unknown): value is ResumeVersionStoreV1 => {
+export const isVersionStore = (value: unknown): value is ResumeVersionStoreV1 => {
   if (!isRecord(value)) return false;
   if (value.schemaVersion !== SCHEMA_VERSION) return false;
   if (typeof value.activeVersionId !== 'string' || !Array.isArray(value.versions)) return false;
@@ -104,6 +104,8 @@ const persistStore = (store: ResumeVersionStoreV1): void => {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(store));
 };
+
+export const persistVersionStore = persistStore;
 
 const createDraft = (resume: ResumeState): ResumeVersionRecord => {
   const timestamp = nowIso();
@@ -126,7 +128,7 @@ const createInitialStore = (seed?: ResumeState): ResumeVersionStoreV1 => {
   };
 };
 
-const normalizeStore = (raw: ResumeVersionStoreV1): ResumeVersionStoreV1 => {
+export const normalizeStore = (raw: ResumeVersionStoreV1): ResumeVersionStoreV1 => {
   const normalizedVersions = raw.versions.map((version) => ({
     ...version,
     resume: normalizeResume(version.resume),
@@ -183,6 +185,18 @@ const defaultSnapshotName = (timestamp: string): string => {
 
 export const getActiveResume = (store: ResumeVersionStoreV1): ResumeState => {
   return cloneResume(getActiveVersionRecord(store).resume);
+};
+
+export const parseVersionStore = (value: unknown): ResumeVersionStoreV1 | null => {
+  if (!isVersionStore(value)) return null;
+  return normalizeStore(value);
+};
+
+export const backupVersionStore = (store: ResumeVersionStoreV1): string | null => {
+  if (typeof window === 'undefined') return null;
+  const key = `resume_builder_migration_backup_${Date.now()}`;
+  window.localStorage.setItem(key, JSON.stringify(store));
+  return key;
 };
 
 export const loadVersionStore = (): ResumeVersionStoreV1 => {

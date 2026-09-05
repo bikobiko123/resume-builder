@@ -27,6 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.115.0",
     "clsx": "^2.1.1",
     "js-yaml": "^4.1.1",
     "react": "^19.0.0",
