@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { renderCroppedDataUrl } from '../lib/photoCrop';
+import { computeCropPreviewLayout, renderCroppedDataUrl } from '../lib/photoCrop';
 import type { PhotoData } from '../types/resume';
 
 interface PhotoUploaderProps {
@@ -9,6 +9,8 @@ interface PhotoUploaderProps {
 
 const ACCEPT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const CROP_PREVIEW_SIZE = 220;
+const DEFAULT_OFFSET_Y = -100;
 
 const PhotoUploader = ({ photo, onPhotoChange }: PhotoUploaderProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -16,21 +18,29 @@ const PhotoUploader = ({ photo, onPhotoChange }: PhotoUploaderProps) => {
   const [source, setSource] = useState('');
   const [zoom, setZoom] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(-30);
+  const [offsetY, setOffsetY] = useState(DEFAULT_OFFSET_Y);
+  const [sourceDimensions, setSourceDimensions] = useState({ width: 0, height: 0 });
   const [saving, setSaving] = useState(false);
 
   const isModalOpen = Boolean(source);
 
-  const previewTransform = useMemo(
-    () => ({ transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})` }),
-    [offsetX, offsetY, zoom],
-  );
+  const previewStyle = useMemo(() => {
+    if (!sourceDimensions.width || !sourceDimensions.height) return undefined;
+
+    return computeCropPreviewLayout(
+      sourceDimensions.width,
+      sourceDimensions.height,
+      { zoom, offsetX, offsetY },
+      CROP_PREVIEW_SIZE,
+    );
+  }, [offsetX, offsetY, sourceDimensions, zoom]);
 
   const resetEditor = () => {
     setSource('');
     setZoom(1);
     setOffsetX(0);
-    setOffsetY(-30);
+    setOffsetY(DEFAULT_OFFSET_Y);
+    setSourceDimensions({ width: 0, height: 0 });
     setSaving(false);
   };
 
@@ -117,7 +127,15 @@ const PhotoUploader = ({ photo, onPhotoChange }: PhotoUploaderProps) => {
           <div className="modal-card">
             <h4>裁剪头像（1:1）</h4>
             <div className="crop-preview-box">
-              <img src={source} alt="裁剪预览" style={previewTransform} />
+              <img
+                src={source}
+                alt="裁剪预览"
+                style={previewStyle}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  setSourceDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+                }}
+              />
               <div className="crop-overlay" />
             </div>
             <div className="crop-controls">

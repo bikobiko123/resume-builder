@@ -11,6 +11,13 @@ interface CropRect {
   sSize: number;
 }
 
+export interface CropPreviewLayout {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
 export const computeCropRect = (
@@ -30,6 +37,23 @@ export const computeCropRect = (
   const sy = clamp(centeredY + (settings.offsetY / 100) * maxShiftY, 0, imageHeight - baseSize);
 
   return { sx, sy, sSize: baseSize };
+};
+
+export const computeCropPreviewLayout = (
+  imageWidth: number,
+  imageHeight: number,
+  settings: CropSettings,
+  viewportSize: number,
+): CropPreviewLayout => {
+  const { sx, sy, sSize } = computeCropRect(imageWidth, imageHeight, settings);
+  const scale = viewportSize / sSize;
+
+  return {
+    width: imageWidth * scale,
+    height: imageHeight * scale,
+    left: -sx * scale,
+    top: -sy * scale,
+  };
 };
 
 const loadImage = (src: string): Promise<HTMLImageElement> =>

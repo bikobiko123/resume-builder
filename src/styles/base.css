@@ -303,6 +303,34 @@ label {
   flex-wrap: wrap;
 }
 
+.item-order-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.subitem-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #60788f;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.custom-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.custom-item-row .text-area {
+  flex: 1;
+}
+
 .item-list {
   display: flex;
   flex-direction: column;
@@ -523,10 +551,10 @@ label {
 }
 
 .crop-preview-box img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transform-origin: center;
+  position: absolute;
+  display: block;
+  max-width: none;
+  max-height: none;
 }
 
 .crop-overlay {

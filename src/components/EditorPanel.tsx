@@ -14,6 +14,7 @@ import {
 } from '../types/resume';
 import PhotoUploader from './PhotoUploader';
 import { formatSkillGroupLine, parseSkillGroupLine } from '../lib/skills';
+import { moveArrayItem, type MoveDirection } from '../lib/reorder';
 
 interface EditorPanelProps {
   resume: ResumeState;
@@ -419,6 +420,39 @@ const SectionEditor = ({
   );
 };
 
+const ItemOrderControls = ({
+  index,
+  total,
+  onMove,
+}: {
+  index: number;
+  total: number;
+  onMove: (direction: MoveDirection) => void;
+}) => (
+  <div className="item-order-controls">
+    <button
+      type="button"
+      className="btn btn-mini btn-light"
+      onClick={() => onMove('up')}
+      disabled={index === 0}
+      title="上移"
+      aria-label="上移条目"
+    >
+      ↑ 上移
+    </button>
+    <button
+      type="button"
+      className="btn btn-mini btn-light"
+      onClick={() => onMove('down')}
+      disabled={index === total - 1}
+      title="下移"
+      aria-label="下移条目"
+    >
+      ↓ 下移
+    </button>
+  </div>
+);
+
 // Work Experience Editor
 const WorkEditor = ({
   section,
@@ -443,6 +477,10 @@ const WorkEditor = ({
     onUpdateSection(section.id, { workEntries: [...entries, createWorkEntry()] });
   };
 
+  const moveEntry = (index: number, direction: MoveDirection) => {
+    onUpdateSection(section.id, { workEntries: moveArrayItem(entries, index, direction) });
+  };
+
   const updatePosition = (entryId: string, positionId: string, updates: any) => {
     const entry = entries.find((e) => e.id === entryId);
     if (!entry) return;
@@ -458,7 +496,7 @@ const WorkEditor = ({
 
   return (
     <div style={{ marginTop: '10px' }}>
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <div
           key={entry.id}
           style={{
@@ -469,6 +507,14 @@ const WorkEditor = ({
             background: '#fbfcfe',
           }}
         >
+          <div className="subitem-order-row">
+            <span>工作经历 {index + 1}</span>
+            <ItemOrderControls
+              index={index}
+              total={entries.length}
+              onMove={(direction) => moveEntry(index, direction)}
+            />
+          </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <input
               className="text-input"
@@ -579,9 +625,13 @@ const EducationEditor = ({
     onUpdateSection(section.id, { educationEntries: [...entries, createEducationEntry()] });
   };
 
+  const moveEntry = (index: number, direction: MoveDirection) => {
+    onUpdateSection(section.id, { educationEntries: moveArrayItem(entries, index, direction) });
+  };
+
   return (
     <div style={{ marginTop: '10px' }}>
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <div
           key={entry.id}
           style={{
@@ -592,6 +642,14 @@ const EducationEditor = ({
             background: '#fbfcfe',
           }}
         >
+          <div className="subitem-order-row">
+            <span>教育经历 {index + 1}</span>
+            <ItemOrderControls
+              index={index}
+              total={entries.length}
+              onMove={(direction) => moveEntry(index, direction)}
+            />
+          </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <input
               className="text-input"
@@ -728,9 +786,13 @@ const ProjectEditor = ({
     onUpdateSection(section.id, { projectEntries: [...entries, createProjectEntry()] });
   };
 
+  const moveEntry = (index: number, direction: MoveDirection) => {
+    onUpdateSection(section.id, { projectEntries: moveArrayItem(entries, index, direction) });
+  };
+
   return (
     <div style={{ marginTop: '10px' }}>
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <div
           key={entry.id}
           style={{
@@ -741,6 +803,14 @@ const ProjectEditor = ({
             background: '#fbfcfe',
           }}
         >
+          <div className="subitem-order-row">
+            <span>项目经历 {index + 1}</span>
+            <ItemOrderControls
+              index={index}
+              total={entries.length}
+              onMove={(direction) => moveEntry(index, direction)}
+            />
+          </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <input
               className="text-input"
@@ -882,10 +952,14 @@ const CustomEditor = ({
 }) => {
   const items = section.items || [];
 
+  const moveItem = (index: number, direction: MoveDirection) => {
+    onUpdateSection(section.id, { items: moveArrayItem(items, index, direction) });
+  };
+
   return (
     <div style={{ marginTop: '10px' }}>
       {items.map((item, idx) => (
-        <div key={item.id} style={{ marginBottom: '8px' }}>
+        <div key={item.id} className="custom-item-row">
           <textarea
             className="text-area"
             rows={2}
@@ -896,6 +970,11 @@ const CustomEditor = ({
               onUpdateSection(section.id, { items: newItems });
             }}
             placeholder="输入内容"
+          />
+          <ItemOrderControls
+            index={idx}
+            total={items.length}
+            onMove={(direction) => moveItem(idx, direction)}
           />
         </div>
       ))}
