@@ -4,6 +4,7 @@ import Toolbar, { type SaveStatus } from './components/Toolbar';
 import EditorPanel from './components/EditorPanel';
 import PreviewA4 from './components/PreviewA4';
 import VersionManagerModal from './components/VersionManagerModal';
+import WorkspaceSidebar from './components/WorkspaceSidebar';
 import { computeFitScale } from './lib/fitScale';
 import { exportPdf, preparePrint } from './lib/pdf';
 import { loadCloudStore, resolveCloudBootstrap, saveCloudStore } from './lib/cloudStorage';
@@ -404,6 +405,13 @@ const App = () => {
       {isScaleLow ? <p className="scale-warning no-print">内容较多，当前缩放低于 72%，建议精简内容以保证可读性。</p> : null}
 
       <main className="workspace">
+        <WorkspaceSidebar
+          personName={resume.personal.name}
+          activeVersionId={activeVersionId}
+          versions={versionsMeta}
+          onOpenVersionManager={() => setVersionManagerOpen(true)}
+          onSaveVersion={handleSaveVersion}
+        />
         <EditorPanel
           resume={resume}
           onUpdatePersonal={updatePersonal}
@@ -424,7 +432,16 @@ const App = () => {
           onSectionTitleChange={updateSectionTitle}
           onUpdateSection={updateSection}
         />
-        <PreviewA4 resume={resume} fitScale={fitScale} measureVersion={measureVersion} onMeasure={handleMeasure} />
+        <section className="preview-panel">
+          <div className="preview-panel-header no-print">
+            <div>
+              <span className="preview-eyebrow">实时预览</span>
+              <strong>A4 页面</strong>
+            </div>
+            <span className="preview-panel-scale">{Math.round(fitScale * 100)}%</span>
+          </div>
+          <PreviewA4 resume={resume} fitScale={fitScale} measureVersion={measureVersion} onMeasure={handleMeasure} />
+        </section>
       </main>
 
       <VersionManagerModal
