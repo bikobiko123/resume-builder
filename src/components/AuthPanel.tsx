@@ -33,7 +33,15 @@ const AuthPanel = ({ authLoading, userEmail, onSignedOut }: AuthPanelProps) => {
 
     const result = mode === 'sign-in'
       ? await client.auth.signInWithPassword({ email, password })
-      : await client.auth.signUp({ email, password });
+      : await client.auth.signUp({
+          email,
+          password,
+          options: {
+            // Do not rely on Supabase's global Site URL: this app is hosted under
+            // a GitHub Pages project path rather than the account root.
+            emailRedirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString(),
+          },
+        });
 
     setBusy(false);
     if (result.error) {
