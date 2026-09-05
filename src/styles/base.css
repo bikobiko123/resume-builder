@@ -182,7 +182,9 @@ p {
   grid-template-columns: 232px minmax(420px, 1fr) minmax(360px, 440px);
   gap: 16px;
   align-items: start;
+  transition: grid-template-columns .18s ease;
 }
+.workspace-sidebar-collapsed { grid-template-columns: 56px minmax(420px, 1fr) minmax(360px, 440px); }
 
 .workspace-sidebar {
   position: sticky;
@@ -606,6 +608,7 @@ select {
 
 @media (max-width: 1180px) and (min-width: 1025px) {
   .workspace { grid-template-columns: 210px minmax(380px, 1fr); }
+  .workspace-sidebar-collapsed { grid-template-columns: 56px minmax(380px, 1fr); }
   .preview-panel { grid-column: 1 / -1; position: relative; min-height: auto; }
 }
 
