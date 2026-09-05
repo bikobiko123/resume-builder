@@ -367,14 +367,16 @@ const parseBodyContent = (content: string): ResumeSection[] => {
 // Infer section type from title
 const inferSectionType = (title: string): ResumeSection['type'] => {
   const lowerTitle = title.toLowerCase();
+  // Match specific section names before the generic “经历” fallback.
+  // Otherwise “项目经历” is incorrectly classified as work experience.
+  if (lowerTitle.includes('项目') || lowerTitle.includes('project')) {
+    return 'project';
+  }
   if (lowerTitle.includes('工作') || lowerTitle.includes('work') || lowerTitle.includes('经历')) {
     return 'work';
   }
   if (lowerTitle.includes('教育') || lowerTitle.includes('education') || lowerTitle.includes('学历')) {
     return 'education';
-  }
-  if (lowerTitle.includes('项目') || lowerTitle.includes('project')) {
-    return 'project';
   }
   if (lowerTitle.includes('技能') || lowerTitle.includes('skills') || lowerTitle.includes('技术')) {
     return 'skills';
