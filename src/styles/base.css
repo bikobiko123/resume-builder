@@ -214,6 +214,10 @@ p {
 .preview-panel { position: sticky; top: 20px; min-height: calc(100vh - 40px); overflow: hidden; border-left: 1px solid #e5e9e6; background: #f4f6f4; }
 .preview-viewport { height: calc(100vh - 78px); overflow: auto; }
 .preview-viewport .a4-page { zoom: var(--preview-zoom, .72); }
+
+/* Preview zoom is never part of the exported document. */
+body.print-mode .preview-viewport .a4-page { zoom: 1 !important; }
+
 .preview-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 6px; color: #52675b; }
 .preview-panel-header > div { display: flex; align-items: center; gap: 6px; }
 .preview-panel-header .preview-eyebrow { display: none; }

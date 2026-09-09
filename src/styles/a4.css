@@ -260,6 +260,21 @@
 }
 
 @media print {
+  /*
+   * The preview zoom is a workspace-only control. It is applied to the A4
+   * page through .preview-viewport, so reset it before the browser captures
+   * the print tree. The document's own fitScale remains shared by preview and
+   * PDF export.
+   */
+  .preview-viewport .a4-page {
+    zoom: 1 !important;
+  }
+
+  .preview-viewport {
+    height: auto;
+    overflow: visible;
+  }
+
   html,
   body {
     width: 210mm;
