@@ -1,7 +1,8 @@
-import type { ResumeVersionMeta } from '../lib/storage';
+import type { ResumePersonMeta, ResumeVersionMeta } from '../lib/storage';
 
 interface VersionManagerModalProps {
   open: boolean;
+  persons: ResumePersonMeta[];
   versions: ResumeVersionMeta[];
   activeVersionId: string;
   onClose: () => void;
@@ -18,6 +19,7 @@ const formatDateTime = (iso: string): string => {
 
 const VersionManagerModal = ({
   open,
+  persons,
   versions,
   activeVersionId,
   onClose,
@@ -37,71 +39,87 @@ const VersionManagerModal = ({
           </button>
         </div>
 
-        <div className="version-list">
-          {versions.map((version) => (
-            <div
-              key={version.id}
-              data-testid={`version-row-${version.id}`}
-              className={version.id === activeVersionId ? 'version-row version-row-active' : 'version-row'}
-            >
-              <div className="version-main">
-                <div className="version-name-line">
-                  <strong>{version.name}</strong>
-                  <span
-                    className={
-                      version.kind === 'draft'
-                        ? 'version-kind-badge version-kind-draft'
-                        : 'version-kind-badge version-kind-snapshot'
-                    }
-                  >
-                    {version.kind === 'draft' ? '草稿' : '快照'}
-                  </span>
-                  {version.id === activeVersionId ? (
-                    <span className="version-active-badge">当前编辑中</span>
-                  ) : null}
-                </div>
-                <p className="version-time">更新时间：{formatDateTime(version.updatedAt)}</p>
+        <div className="version-scroll">
+        {persons.map((person) => {
+          const owned = versions.filter((version) => version.personId === person.id);
+          if (owned.length === 0) return null;
+
+          return (
+            <div key={person.id} className="version-person-group">
+              <div className="version-person-heading">
+                <span className="tree-avatar">{person.name.slice(0, 1) || '我'}</span>
+                <strong>{person.name}</strong>
               </div>
 
-              <div className="version-actions">
-                {version.id !== activeVersionId ? (
-                  <button type="button" className="btn btn-mini btn-light" onClick={() => onSwitch(version.id)}>
-                    进入编辑
-                  </button>
-                ) : null}
-
-                <button
-                  type="button"
-                  className="btn btn-mini btn-light"
-                  onClick={() => {
-                    const nextName = window.prompt('请输入新的版本名', version.name);
-                    if (nextName === null) return;
-                    const trimmed = nextName.trim();
-                    if (!trimmed) {
-                      alert('版本名不能为空');
-                      return;
-                    }
-                    onRename(version.id, trimmed);
-                  }}
-                >
-                  重命名
-                </button>
-
-                {version.kind === 'snapshot' ? (
-                  <button
-                    type="button"
-                    className="btn btn-mini btn-danger"
-                    onClick={() => {
-                      if (!window.confirm(`确认删除版本“${version.name}”？`)) return;
-                      onDelete(version.id);
-                    }}
+              <div className="version-list">
+                {owned.map((version) => (
+                  <div
+                    key={version.id}
+                    data-testid={`version-row-${version.id}`}
+                    className={version.id === activeVersionId ? 'version-row version-row-active' : 'version-row'}
                   >
-                    删除
-                  </button>
-                ) : null}
+                    <div className="version-main">
+                      <div className="version-name-line">
+                        <strong>{version.name}</strong>
+                        <span
+                          className={
+                            version.kind === 'draft'
+                              ? 'version-kind-badge version-kind-draft'
+                              : 'version-kind-badge version-kind-snapshot'
+                          }
+                        >
+                          {version.kind === 'draft' ? '草稿' : '快照'}
+                        </span>
+                        {version.id === activeVersionId ? (
+                          <span className="version-active-badge">当前编辑中</span>
+                        ) : null}
+                      </div>
+                      <p className="version-time">更新时间：{formatDateTime(version.updatedAt)}</p>
+                    </div>
+
+                    <div className="version-actions">
+                      {version.id !== activeVersionId ? (
+                        <button type="button" className="btn btn-mini btn-light" onClick={() => onSwitch(version.id)}>
+                          进入编辑
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        className="btn btn-mini btn-light"
+                        onClick={() => {
+                          const nextName = window.prompt('请输入新的版本名', version.name);
+                          if (nextName === null) return;
+                          const trimmed = nextName.trim();
+                          if (!trimmed) {
+                            alert('版本名不能为空');
+                            return;
+                          }
+                          onRename(version.id, trimmed);
+                        }}
+                      >
+                        重命名
+                      </button>
+
+                      {version.kind === 'snapshot' ? (
+                        <button
+                          type="button"
+                          className="btn btn-mini btn-danger"
+                          onClick={() => {
+                            if (!window.confirm(`确认删除版本“${version.name}”？`)) return;
+                            onDelete(version.id);
+                          }}
+                        >
+                          删除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       </section>
     </div>

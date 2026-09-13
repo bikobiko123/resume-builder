@@ -1,4 +1,4 @@
-import { parseVersionStore, type ResumeVersionStoreV1 } from './storage';
+import { parseVersionStore, type ResumeVersionStore } from './storage';
 import { supabase } from './supabase';
 
 export interface CloudStorageResult<T> {
@@ -7,14 +7,14 @@ export interface CloudStorageResult<T> {
 }
 
 export interface CloudBootstrapDecision {
-  store: ResumeVersionStoreV1;
+  store: ResumeVersionStore;
   shouldUploadLocal: boolean;
   hasConflict: boolean;
 }
 
 export const resolveCloudBootstrap = (
-  localStore: ResumeVersionStoreV1,
-  cloudStore: ResumeVersionStoreV1 | null,
+  localStore: ResumeVersionStore,
+  cloudStore: ResumeVersionStore | null,
 ): CloudBootstrapDecision => {
   if (!cloudStore) {
     return { store: localStore, shouldUploadLocal: true, hasConflict: false };
@@ -29,7 +29,7 @@ export const resolveCloudBootstrap = (
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(typeof error === 'string' ? error : '云端存储请求失败');
 
-export const loadCloudStore = async (userId: string): Promise<CloudStorageResult<ResumeVersionStoreV1>> => {
+export const loadCloudStore = async (userId: string): Promise<CloudStorageResult<ResumeVersionStore>> => {
   if (!supabase) return { data: null, error: new Error('Supabase 尚未配置') };
 
   const { data, error } = await supabase
@@ -49,8 +49,8 @@ export const loadCloudStore = async (userId: string): Promise<CloudStorageResult
 
 export const saveCloudStore = async (
   userId: string,
-  store: ResumeVersionStoreV1,
-): Promise<CloudStorageResult<ResumeVersionStoreV1>> => {
+  store: ResumeVersionStore,
+): Promise<CloudStorageResult<ResumeVersionStore>> => {
   if (!supabase) return { data: null, error: new Error('Supabase 尚未配置') };
 
   const { data, error } = await supabase

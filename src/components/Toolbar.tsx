@@ -10,6 +10,8 @@ interface ToolbarProps {
   onSaveVersion: () => void;
   onOpenVersionManager: () => void;
   onExportMarkdown: () => void;
+  onExportWord: () => void;
+  wordExporting: boolean;
   onImportMarkdown: (file: File) => void;
   activeVersionName: string;
   fitScale: number;
@@ -38,6 +40,8 @@ const Toolbar = ({
   onSaveVersion,
   onOpenVersionManager,
   onExportMarkdown,
+  onExportWord,
+  wordExporting,
   onImportMarkdown,
   activeVersionName,
   fitScale,
@@ -84,6 +88,9 @@ const Toolbar = ({
             <button type="button" onClick={onReset}>重置模板</button>
             <button type="button" onClick={() => fileInputRef.current?.click()}>导入 Markdown</button>
             <button type="button" onClick={onExportMarkdown}>导出 Markdown</button>
+            <button type="button" onClick={onExportWord} disabled={wordExporting}>
+              {wordExporting ? '正在导出 Word…' : '导出 Word (.docx)'}
+            </button>
             <button type="button" onClick={onSaveVersion}>保存版本</button>
             <button type="button" onClick={onOpenVersionManager}>版本管理</button>
           </div>

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCloudBootstrap, saveCloudStore } from '../lib/cloudStorage';
 import { createDefaultResumeState } from '../types/resume';
-import type { ResumeVersionStoreV1 } from '../lib/storage';
+import type { ResumeVersionStore } from '../lib/storage';
 
-const createStore = (name: string): ResumeVersionStoreV1 => ({
-  schemaVersion: 1,
+const createStore = (name: string): ResumeVersionStore => ({
+  schemaVersion: 2,
   activeVersionId: 'draft',
   versions: [{
     id: 'draft',
+    personId: 'person-1',
     name: '当前草稿',
     kind: 'draft',
     resume: {

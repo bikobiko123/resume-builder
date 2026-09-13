@@ -111,6 +111,7 @@ p {
 .toolbar-menu-popover { position: absolute; z-index: 10; right: 0; top: 34px; display: grid; min-width: 150px; padding: 5px; border: 1px solid #e4e8e5; border-radius: 7px; background: #fff; box-shadow: 0 8px 24px rgba(35, 50, 42, .12); }
 .toolbar-menu-popover button { border: 0; border-radius: 4px; padding: 8px 10px; color: #4c5d52; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
 .toolbar-menu-popover button:hover { background: #f0f3f1; }
+.toolbar-menu-popover button:disabled { cursor: not-allowed; opacity: 0.55; background: transparent; }
 
 .font-size-control {
   min-width: 176px;
@@ -209,6 +210,14 @@ p {
 .sidebar-actions { display: grid; gap: 5px; margin-top: 18px; }
 .sidebar-action { border: 0; border-radius: 7px; padding: 8px; color: #60766a; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
 .sidebar-action:hover { background: #eaf1ed; color: #1e4935; }
+.sidebar-action-primary { color: #244b38; font-weight: 600; }
+.tree-person-group { margin-bottom: 2px; }
+.tree-label-button { flex: 1; min-width: 0; border: 0; padding: 0; color: inherit; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+.tree-label-button:hover { color: #1e4935; }
+.tree-delete { border: 0; border-radius: 4px; padding: 0 5px; color: #aebbb4; background: transparent; line-height: 1.4; font-size: 13px; cursor: pointer; }
+.tree-delete:hover { color: #b4453c; background: #f6e7e5; }
+.tree-version-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-version-more { color: #91a098; font-size: 11px; }
 .sidebar-footer { display: flex; align-items: center; gap: 7px; margin-top: auto; padding: 18px 7px 0; color: #91a098; font-size: 11px; }
 .sidebar-footer-icon { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #cbd9d1; border-radius: 5px; color: #71877a; }
 .preview-panel { position: sticky; top: 20px; min-height: calc(100vh - 40px); overflow: hidden; border-left: 1px solid #e5e9e6; background: #f4f6f4; }
@@ -463,14 +472,18 @@ label {
   flex-direction: column;
 }
 
+.version-scroll { flex: 1; min-height: 0; overflow: auto; padding-right: 2px; }
+
 .version-list {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: auto;
-  padding-right: 2px;
 }
+
+.version-person-group { margin-top: 16px; }
+.version-person-group:first-child { margin-top: 6px; }
+.version-person-heading { display: flex; align-items: center; gap: 8px; padding: 0 2px 2px; color: #33463f; font-size: 13px; }
 
 .version-row {
   display: flex;

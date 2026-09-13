@@ -1,27 +1,39 @@
 import { useState } from 'react';
-import type { ResumeVersionMeta } from '../lib/storage';
+import type { ResumePersonMeta, ResumeVersionMeta } from '../lib/storage';
 
 interface WorkspaceSidebarProps {
-  personName: string;
-  activeVersionId: string;
+  persons: ResumePersonMeta[];
   versions: ResumeVersionMeta[];
+  activeVersionId: string;
+  onSelectPerson: (personId: string) => void;
+  onSelectVersion: (versionId: string) => void;
+  onCreatePerson: () => void;
+  onDeletePerson: (personId: string) => void;
   onOpenVersionManager: () => void;
   onSaveVersion: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
 
+const VISIBLE_SNAPSHOTS = 3;
+
 const WorkspaceSidebar = ({
-  personName,
-  activeVersionId,
+  persons,
   versions,
+  activeVersionId,
+  onSelectPerson,
+  onSelectVersion,
+  onCreatePerson,
+  onDeletePerson,
   onOpenVersionManager,
   onSaveVersion,
   collapsed,
   onToggleCollapse,
 }: WorkspaceSidebarProps) => {
-  const [personOpen, setPersonOpen] = useState(true);
-  const [resumeOpen, setResumeOpen] = useState(true);
+  const [collapsedPersons, setCollapsedPersons] = useState<Record<string, boolean>>({});
+  const isOpen = (personId: string) => !collapsedPersons[personId];
+  const togglePerson = (personId: string) =>
+    setCollapsedPersons((prev) => ({ ...prev, [personId]: !prev[personId] }));
 
   return (
   <aside className={`workspace-sidebar no-print ${collapsed ? 'workspace-sidebar-is-collapsed' : ''}`} aria-label="简历工作区导航">
@@ -33,34 +45,90 @@ const WorkspaceSidebar = ({
 
     <div className="sidebar-section-label">所有简历</div>
     <div className="sidebar-tree">
-      <div className="tree-person tree-item-active">
-        <button type="button" className="tree-toggle" onClick={() => setPersonOpen((open) => !open)} aria-label={personOpen ? '收起人物' : '展开人物'}>{personOpen ? '⌄' : '›'}</button>
-        <span className="tree-avatar">{personName.slice(0, 1) || '我'}</span>
-        <span className="tree-label">{personName || '未命名人物'}</span>
-      </div>
-      {personOpen ? <div className="tree-resume-group">
-        <div className="tree-resume tree-item-active">
-          <button type="button" className="tree-toggle" onClick={() => setResumeOpen((open) => !open)} aria-label={resumeOpen ? '收起简历' : '展开简历'}>{resumeOpen ? '⌄' : '›'}</button>
-          <span className="tree-document">▤</span>
-          <span className="tree-label">默认简历</span>
-        </div>
-        {resumeOpen ? <div className="tree-versions">
-          {versions.slice(0, 3).map((version) => (
-            <button
-              key={version.id}
-              type="button"
-              className={`tree-version ${version.id === activeVersionId ? 'tree-version-active' : ''}`}
-              onClick={onOpenVersionManager}
-            >
-              <span className="tree-dot" />
-              <span>{version.name}</span>
-            </button>
-          ))}
-        </div> : null}
-      </div> : null}
+      {persons.map((person) => {
+        const owned = versions.filter((version) => version.personId === person.id);
+        const draft = owned.find((version) => version.kind === 'draft');
+        const snapshots = owned.filter((version) => version.kind === 'snapshot');
+        const open = isOpen(person.id);
+
+        return (
+          <div key={person.id} className="tree-person-group">
+            <div className={`tree-person ${person.isActive ? 'tree-item-active' : ''}`}>
+              <button
+                type="button"
+                className="tree-toggle"
+                onClick={() => togglePerson(person.id)}
+                aria-label={open ? `收起 ${person.name}` : `展开 ${person.name}`}
+                aria-expanded={open}
+              >
+                {open ? '⌄' : '›'}
+              </button>
+              <span className="tree-avatar">{person.name.slice(0, 1) || '我'}</span>
+              <button
+                type="button"
+                className="tree-label tree-label-button"
+                onClick={() => onSelectPerson(person.id)}
+                title={person.name}
+              >
+                {person.name}
+              </button>
+              {persons.length > 1 ? (
+                <button
+                  type="button"
+                  className="tree-delete"
+                  onClick={() => onDeletePerson(person.id)}
+                  aria-label={`删除人物 ${person.name}`}
+                  title="删除该人物及其全部版本"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+
+            {open ? (
+              <div className="tree-resume-group">
+                <div className={`tree-resume ${person.isActive ? 'tree-item-active' : ''}`}>
+                  <span className="tree-document">▤</span>
+                  <button
+                    type="button"
+                    className="tree-label tree-label-button"
+                    onClick={() => draft && onSelectVersion(draft.id)}
+                    title={draft?.name ?? '默认简历'}
+                  >
+                    {draft?.name ?? '默认简历'}
+                  </button>
+                </div>
+
+                {snapshots.length > 0 ? (
+                  <div className="tree-versions">
+                    {snapshots.slice(0, VISIBLE_SNAPSHOTS).map((version) => (
+                      <button
+                        key={version.id}
+                        type="button"
+                        className={`tree-version ${version.id === activeVersionId ? 'tree-version-active' : ''}`}
+                        onClick={() => onSelectVersion(version.id)}
+                        title={version.name}
+                      >
+                        <span className="tree-dot" />
+                        <span className="tree-version-label">{version.name}</span>
+                      </button>
+                    ))}
+                    {snapshots.length > VISIBLE_SNAPSHOTS ? (
+                      <button type="button" className="tree-version tree-version-more" onClick={onOpenVersionManager}>
+                        还有 {snapshots.length - VISIBLE_SNAPSHOTS} 个版本…
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
 
     <div className="sidebar-actions">
+      <button type="button" className="sidebar-action sidebar-action-primary" onClick={onCreatePerson}>＋ 新建人物</button>
       <button type="button" className="sidebar-action" onClick={onSaveVersion}>＋ 新建版本</button>
       <button type="button" className="sidebar-action" onClick={onOpenVersionManager}>⚙ 管理版本</button>
     </div>

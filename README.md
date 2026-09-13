@@ -11,6 +11,7 @@
 - **实时预览** - 左侧编辑，右侧实时预览 A4 尺寸简历
 - **Markdown 支持** - 支持 Markdown 格式的导入和导出（含 YAML frontmatter）
 - **PDF 导出** - 通过浏览器打印功能导出高质量 PDF
+- **Word 导出** - 一键导出排版还原的 .docx 文件（A4 页面、章节分隔线、右对齐日期、项目符号、粗体内联语法）
 - **版本管理** - 支持保存多个简历版本，自动保存到本地存储
 - **照片上传** - 支持头像上传和裁剪
 - **自适应布局** - 内容自动缩放适配 A4 纸张
@@ -88,6 +89,7 @@ npm run test
 - **导出 Markdown** - 点击工具栏"导出 Markdown"按钮
 - **导入 Markdown** - 点击"导入 Markdown"，选择包含 YAML frontmatter 的 .md 文件
 - **导出 PDF** - 点击"导出 PDF"，使用浏览器打印功能保存为 PDF
+- **导出 Word** - 点击"•••"菜单中的"导出 Word (.docx)"，下载可直接在 Word / WPS 中编辑的文档
 
 ### 版本管理
 
@@ -126,6 +128,7 @@ npm run test
 │   ├── lib/            # 工具函数
 │   │   ├── storage.ts   # 本地存储管理
 │   │   ├── pdf.ts       # PDF 导出
+│   │   ├── word.ts      # Word (.docx) 导出
 │   │   └── markdown.ts  # Markdown 处理
 │   ├── types/          # TypeScript 类型定义
 │   └── styles/         # CSS 样式

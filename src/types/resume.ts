@@ -452,3 +452,21 @@ export const createDefaultResumeState = (): ResumeState => ({
   fontSizePt: DEFAULT_RESUME_FONT_SIZE_PT,
   ...createDefaultVisibility(),
 });
+
+// 新建人物时使用的空白简历：沿用模板的显示偏好，但不带任何示例内容。
+export const createBlankResumeState = (name = ''): ResumeState => ({
+  ...createDefaultResumeState(),
+  personal: {
+    name,
+    email: '',
+    phone: '',
+    url: '',
+    titles: [],
+    location: {},
+    profiles: [],
+    summary: '',
+  },
+  sections: [],
+  photo: undefined,
+  updatedAt: new Date().toISOString(),
+});

@@ -11,10 +11,13 @@ import { loadCloudStore, resolveCloudBootstrap, saveCloudStore } from './lib/clo
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
   backupVersionStore,
+  createPerson,
   createSnapshotFromActive,
+  deletePerson,
   deleteVersion,
   getActiveResume,
   getLocalPersistenceError,
+  listPersonsMeta,
   listVersionsMeta,
   loadVersionStore,
   normalizeStore,
@@ -22,9 +25,11 @@ import {
   renameVersion,
   resetActiveToTemplate,
   saveActiveResume,
+  switchActivePerson,
   switchActiveVersion,
+  type ResumePersonMeta,
   type ResumeVersionMeta,
-  type ResumeVersionStoreV1,
+  type ResumeVersionStore,
 } from './lib/storage';
 import { exportToMarkdown, downloadMarkdown, parseMarkdownFile, importFromMarkdown } from './lib/markdown';
 import {
@@ -45,6 +50,7 @@ const App = () => {
   const [hydrated, setHydrated] = useState(false);
   const [activeVersionId, setActiveVersionId] = useState('');
   const [versionsMeta, setVersionsMeta] = useState<ResumeVersionMeta[]>([]);
+  const [personsMeta, setPersonsMeta] = useState<ResumePersonMeta[]>([]);
   const [versionManagerOpen, setVersionManagerOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
@@ -52,13 +58,14 @@ const App = () => {
   const [cloudNotice, setCloudNotice] = useState('');
   const [localNotice, setLocalNotice] = useState('');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [wordExporting, setWordExporting] = useState(false);
 
-  const localStoreRef = useRef<ResumeVersionStoreV1 | null>(null);
+  const localStoreRef = useRef<ResumeVersionStore | null>(null);
   const userRef = useRef<User | null>(null);
   const cloudReadyRef = useRef(cloudReady);
   const cloudSaveGenerationRef = useRef(0);
   const cloudSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const pendingCloudStoreRef = useRef<ResumeVersionStoreV1 | null>(null);
+  const pendingCloudStoreRef = useRef<ResumeVersionStore | null>(null);
 
   useEffect(() => {
     userRef.current = user;
@@ -73,15 +80,16 @@ const App = () => {
     pendingCloudStoreRef.current = null;
   }, [user?.id]);
 
-  const syncVersionState = (store: ResumeVersionStoreV1, syncResume = false) => {
+  const syncVersionState = (store: ResumeVersionStore, syncResume = false) => {
     localStoreRef.current = store;
     setActiveVersionId(store.activeVersionId);
     setVersionsMeta(listVersionsMeta(store));
+    setPersonsMeta(listPersonsMeta(store));
     setLocalNotice(getLocalPersistenceError() ?? '');
     if (syncResume) setResume(getActiveResume(store));
   };
 
-  const syncStoreToCloud = (store: ResumeVersionStoreV1) => {
+  const syncStoreToCloud = (store: ResumeVersionStore) => {
     const currentUser = userRef.current;
     if (!currentUser) return;
     if (!cloudReadyRef.current) {
@@ -308,10 +316,56 @@ const App = () => {
     setMeasureVersion((prev) => prev + 1);
   };
 
+  const handleCreatePerson = () => {
+    const name = window.prompt('新人物姓名（可留空，之后在左侧“个人信息”里填写）', '');
+    if (name === null) return;
+    const store = createPerson(name);
+    syncVersionState(store, true);
+    syncStoreToCloud(store);
+    setMeasureVersion((prev) => prev + 1);
+  };
+
+  const handleSelectPerson = (personId: string) => {
+    if (personsMeta.find((person) => person.id === personId)?.isActive) return;
+    const store = switchActivePerson(personId);
+    syncVersionState(store, true);
+    syncStoreToCloud(store);
+    setMeasureVersion((prev) => prev + 1);
+  };
+
+  const handleDeletePerson = (personId: string) => {
+    const person = personsMeta.find((item) => item.id === personId);
+    if (!person) return;
+    if (personsMeta.length <= 1) {
+      alert('至少需要保留一个人物。');
+      return;
+    }
+    const versionCount = versionsMeta.filter((version) => version.personId === personId).length;
+    if (!window.confirm(`确认删除人物“${person.name}”及其 ${versionCount} 个版本？此操作不可撤销。`)) return;
+    const store = deletePerson(personId);
+    syncVersionState(store, true);
+    syncStoreToCloud(store);
+    setMeasureVersion((prev) => prev + 1);
+  };
+
   const handleExportMarkdown = () => {
     const content = exportToMarkdown(resume);
     const filename = `${resume.personal.name || '简历'}_${new Date().toISOString().split('T')[0]}`;
     downloadMarkdown(content, filename);
+  };
+
+  const handleExportWord = async () => {
+    setWordExporting(true);
+    try {
+      const { resumeToDocxBlob, downloadDocx, buildDocxFilename } = await import('./lib/word');
+      const blob = await resumeToDocxBlob(resume);
+      downloadDocx(blob, buildDocxFilename(resume));
+    } catch (error) {
+      console.error('导出 Word 失败:', error);
+      alert(`导出 Word 失败：${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setWordExporting(false);
+    }
   };
 
   const handleImportMarkdown = async (file: File) => {
@@ -398,6 +452,8 @@ const App = () => {
         onSaveVersion={handleSaveVersion}
         onOpenVersionManager={() => setVersionManagerOpen(true)}
         onExportMarkdown={handleExportMarkdown}
+        onExportWord={handleExportWord}
+        wordExporting={wordExporting}
         onImportMarkdown={handleImportMarkdown}
         activeVersionName={activeVersionName}
         fitScale={fitScale}
@@ -417,9 +473,13 @@ const App = () => {
         <WorkspaceSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          personName={resume.personal.name}
-          activeVersionId={activeVersionId}
+          persons={personsMeta}
           versions={versionsMeta}
+          activeVersionId={activeVersionId}
+          onSelectPerson={handleSelectPerson}
+          onSelectVersion={handleSwitchVersion}
+          onCreatePerson={handleCreatePerson}
+          onDeletePerson={handleDeletePerson}
           onOpenVersionManager={() => setVersionManagerOpen(true)}
           onSaveVersion={handleSaveVersion}
         />
@@ -464,6 +524,7 @@ const App = () => {
 
       <VersionManagerModal
         open={versionManagerOpen}
+        persons={personsMeta}
         versions={versionsMeta}
         activeVersionId={activeVersionId}
         onClose={() => setVersionManagerOpen(false)}
