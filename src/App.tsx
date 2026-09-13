@@ -7,21 +7,31 @@ import VersionManagerModal from './components/VersionManagerModal';
 import WorkspaceSidebar from './components/WorkspaceSidebar';
 import { computeFitScale } from './lib/fitScale';
 import { exportPdf, preparePrint } from './lib/pdf';
-import { loadCloudStore, resolveCloudBootstrap, saveCloudStore } from './lib/cloudStorage';
+import {
+  deleteCloudPerson,
+  deleteCloudRows,
+  isCloudSchemaError,
+  loadCloudRows,
+  planCloudSync,
+  saveCloudPerson,
+  SCHEMA_NOT_MIGRATED_MESSAGE,
+  type CloudSyncPlan,
+} from './lib/cloudStorage';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
-  backupVersionStore,
   createPerson,
   createSnapshotFromActive,
   deletePerson,
   deleteVersion,
   getActiveResume,
   getLocalPersistenceError,
+  isBlankPersonSlice,
   listPersonsMeta,
   listVersionsMeta,
   loadVersionStore,
-  normalizeStore,
   persistVersionStore,
+  personIdsOf,
+  personSlice,
   renameVersion,
   resetActiveToTemplate,
   saveActiveResume,
@@ -40,6 +50,38 @@ import {
   type SectionType,
   type PhotoData,
 } from './types/resume';
+
+const TOMBSTONE_STORAGE_KEY = 'resume_builder_deleted_persons_v1';
+
+/**
+ * 本地已删除的人物。没有它，另一台设备下一次同步会把已删人物重新推回云端（复活）。
+ * 只在云端行确认删除后才清除。
+ */
+const readTombstones = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(TOMBSTONE_STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeTombstones = (personIds: string[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(TOMBSTONE_STORAGE_KEY, JSON.stringify(personIds));
+  } catch {
+    /* 存储不可用时 tombstone 只存在内存里，最多导致已删人物被推回一次 */
+  }
+};
+
+const sliceName = (slice: ResumeVersionStore): string =>
+  slice.versions.find((version) => version.kind === 'draft')?.resume.personal.name?.trim() ?? '';
+
+const storeContentChanged = (before: ResumeVersionStore, after: ResumeVersionStore): boolean =>
+  before.activeVersionId !== after.activeVersionId ||
+  JSON.stringify(before.versions) !== JSON.stringify(after.versions);
 
 const App = () => {
   const [resume, setResume] = useState<ResumeState>(createDefaultResumeState);
@@ -66,6 +108,11 @@ const App = () => {
   const cloudSaveGenerationRef = useRef(0);
   const cloudSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingCloudStoreRef = useRef<ResumeVersionStore | null>(null);
+  const tombstonesRef = useRef<string[]>(readTombstones());
+  /** 云端是否已经有人物：用于避免全新设备的空白草稿被推成一行云端文档。 */
+  const cloudHasContentRef = useRef(false);
+  /** 表结构未迁移时阻断同步，避免每次编辑都失败刷屏。 */
+  const cloudBlockedRef = useRef(false);
 
   useEffect(() => {
     userRef.current = user;
@@ -89,9 +136,72 @@ const App = () => {
     if (syncResume) setResume(getActiveResume(store));
   };
 
+  const addTombstones = (personIds: string[]) => {
+    const next = Array.from(new Set([...tombstonesRef.current, ...personIds]));
+    tombstonesRef.current = next;
+    writeTombstones(next);
+  };
+
+  const clearTombstones = (personIds: string[]) => {
+    const next = tombstonesRef.current.filter((id) => !personIds.includes(id));
+    tombstonesRef.current = next;
+    writeTombstones(next);
+  };
+
+  /**
+   * 按人物推送。删除只来自 tombstone（用户显式删除），
+   * 绝不根据「本地没有这个人物」来推断删除 —— 全新设备/未 hydrate 的本地 store 会把云端人物全删掉。
+   */
+  const pushStoreToCloud = async (userId: string, store: ResumeVersionStore) => {
+    const tombstones = tombstonesRef.current;
+    for (const personId of personIdsOf(store)) {
+      if (tombstones.includes(personId)) continue;
+      const slice = personSlice(store, personId);
+      if (isBlankPersonSlice(slice) && cloudHasContentRef.current) continue;
+      const result = await saveCloudPerson(userId, personId, sliceName(slice), slice);
+      if (result.error) throw result.error;
+    }
+
+    if (tombstones.length > 0) {
+      const deleted: string[] = [];
+      for (const personId of tombstones) {
+        const { error } = await deleteCloudPerson(userId, personId);
+        if (error) throw error;
+        deleted.push(personId);
+      }
+      clearTombstones(deleted);
+    }
+    cloudHasContentRef.current = true;
+  };
+
+  /** 执行登录时的合并计划：推送本地较新的/云端缺失的人物，删除已删人物与已拆解的旧结构行。 */
+  const applyCloudPlan = async (userId: string, plan: CloudSyncPlan) => {
+    for (const item of plan.toPush) {
+      const result = await saveCloudPerson(userId, item.personId, item.name, item.slice);
+      if (result.error) throw result.error;
+    }
+
+    if (plan.toDeletePersonIds.length > 0) {
+      const deleted: string[] = [];
+      for (const personId of plan.toDeletePersonIds) {
+        const { error } = await deleteCloudPerson(userId, personId);
+        if (error) throw error;
+        deleted.push(personId);
+      }
+      clearTombstones(deleted);
+    }
+
+    if (plan.toDeleteRowIds.length > 0) {
+      const { error } = await deleteCloudRows(userId, plan.toDeleteRowIds);
+      if (error) throw error;
+    }
+    cloudHasContentRef.current = true;
+  };
+
   const syncStoreToCloud = (store: ResumeVersionStore) => {
     const currentUser = userRef.current;
     if (!currentUser) return;
+    if (cloudBlockedRef.current) return;
     if (!cloudReadyRef.current) {
       pendingCloudStoreRef.current = store;
       return;
@@ -104,17 +214,18 @@ const App = () => {
         if (generation !== cloudSaveGenerationRef.current) return;
         setSaveStatus('saving-cloud');
         try {
-          const result = await saveCloudStore(currentUser.id, store);
+          await pushStoreToCloud(currentUser.id, store);
           if (generation !== cloudSaveGenerationRef.current) return;
-          if (result.error) {
-            setSaveStatus(navigator.onLine ? 'error' : 'offline');
-            setCloudNotice(`云端同步失败：${result.error.message}。本地数据仍已保存。`);
-            return;
-          }
           setSaveStatus('saved');
           setCloudNotice('');
         } catch (error) {
           if (generation !== cloudSaveGenerationRef.current) return;
+          if (isCloudSchemaError(error as Error)) {
+            cloudBlockedRef.current = true;
+            setSaveStatus('error');
+            setCloudNotice(SCHEMA_NOT_MIGRATED_MESSAGE);
+            return;
+          }
           setSaveStatus(navigator.onLine ? 'error' : 'offline');
           setCloudNotice(`云端同步失败：${error instanceof Error ? error.message : '网络请求失败'}。本地数据仍已保存。`);
         }
@@ -168,46 +279,53 @@ const App = () => {
     setCloudNotice('正在读取云端简历…');
     setSaveStatus('saving-cloud');
 
-    loadCloudStore(user.id).then(async (result) => {
+    loadCloudRows(user.id).then(async (result) => {
       if (cancelled) return;
       if (result.error) {
+        cloudBlockedRef.current = isCloudSchemaError(result.error);
         setCloudReady(true);
         setSaveStatus(navigator.onLine ? 'error' : 'offline');
-        setCloudNotice(`云端读取失败：${result.error.message}。当前继续使用本地数据。`);
+        setCloudNotice(cloudBlockedRef.current
+          ? SCHEMA_NOT_MIGRATED_MESSAGE
+          : `云端读取失败：${result.error.message}。当前继续使用本地数据。`);
         return;
       }
 
-      const decision = resolveCloudBootstrap(localStore, result.data);
-      if (!decision.shouldUploadLocal) {
-        if (decision.hasConflict && !backupVersionStore(localStore)) {
+      const rows = result.data ?? [];
+      cloudHasContentRef.current = rows.length > 0;
+      // 纯函数合并：云端赢 + 本地分歧存成快照 + 版本并集（幂等，重复登录不会越滚越多）。
+      const plan = planCloudSync(localStore, rows, tombstonesRef.current);
+      const merged = plan.store;
+
+      if (storeContentChanged(localStore, merged)) {
+        persistVersionStore(merged);
+        syncVersionState(merged, true);
+        setMeasureVersion((prev) => prev + 1);
+      } else {
+        syncVersionState(merged, false);
+      }
+
+      pendingCloudStoreRef.current = null;
+      setCloudReady(true);
+
+      try {
+        await applyCloudPlan(user.id, plan);
+        if (cancelled) return;
+        setSaveStatus('saved');
+        setCloudNotice(plan.conflicts.length > 0
+          ? `云端与本地都有改动：已采用云端内容，本地那份保留为快照「云端覆盖前的本地副本」（${plan.conflicts.length} 个人物）。`
+          : '');
+      } catch (error) {
+        if (cancelled) return;
+        if (isCloudSchemaError(error as Error)) {
+          cloudBlockedRef.current = true;
           setSaveStatus('error');
-          setCloudNotice('本地与云端不同，但浏览器无法创建安全备份。已保留本地简历并暂停同步，请先导出 Markdown，再处理存储空间。');
+          setCloudNotice(SCHEMA_NOT_MIGRATED_MESSAGE);
           return;
         }
-        pendingCloudStoreRef.current = null;
-        setCloudNotice(decision.hasConflict
-          ? '当前使用云端版本；切换前的本地简历已保留为浏览器备份。'
-          : '');
-        const normalized = normalizeStore(decision.store);
-        persistVersionStore(normalized);
-        syncVersionState(normalized, true);
-        setSaveStatus('saved');
-        setCloudReady(true);
-        return;
-      }
-
-      const uploadStore = pendingCloudStoreRef.current ?? decision.store;
-      pendingCloudStoreRef.current = null;
-      const upload = await saveCloudStore(user.id, uploadStore);
-      if (cancelled) return;
-      setCloudReady(true);
-      if (upload.error) {
         setSaveStatus(navigator.onLine ? 'error' : 'offline');
-        setCloudNotice(`首次同步失败：${upload.error.message}。本地数据仍已保存。`);
-        return;
+        setCloudNotice(`云端同步失败：${error instanceof Error ? error.message : '网络请求失败'}。本地数据仍已保存。`);
       }
-      setSaveStatus('saved');
-      setCloudNotice('本地简历已首次同步到云端。');
     }).catch((error: unknown) => {
       if (cancelled) return;
       setCloudReady(true);
@@ -266,6 +384,10 @@ const App = () => {
   const activeVersionName = useMemo(
     () => versionsMeta.find((version) => version.id === activeVersionId)?.name || '当前草稿',
     [versionsMeta, activeVersionId]
+  );
+  const activePersonName = useMemo(
+    () => personsMeta.find((person) => person.isActive)?.name || '',
+    [personsMeta]
   );
 
   const handleMeasure = (naturalHeight: number, frameHeight: number) => {
@@ -342,6 +464,8 @@ const App = () => {
     }
     const versionCount = versionsMeta.filter((version) => version.personId === personId).length;
     if (!window.confirm(`确认删除人物“${person.name}”及其 ${versionCount} 个版本？此操作不可撤销。`)) return;
+    // 先记 tombstone 再删除：否则另一台设备下一次同步会把这个人推回云端。
+    addTombstones([personId]);
     const store = deletePerson(personId);
     syncVersionState(store, true);
     syncStoreToCloud(store);
@@ -455,6 +579,7 @@ const App = () => {
         onExportWord={handleExportWord}
         wordExporting={wordExporting}
         onImportMarkdown={handleImportMarkdown}
+        personName={activePersonName}
         activeVersionName={activeVersionName}
         fitScale={fitScale}
         isScaleLow={isScaleLow}

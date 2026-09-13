@@ -109,7 +109,7 @@ const AuthPanel = ({ authLoading, userEmail, onSignedOut }: AuthPanelProps) => {
                 关闭
               </button>
             </div>
-            <p className="auth-help">登录后可在不同浏览器和设备恢复你的简历。</p>
+            <p className="auth-help">登录后可在不同浏览器和设备间同步你的全部人物与版本。冲突时以云端为准，本地改动会保留为快照。</p>
             <form className="auth-form" onSubmit={handleSubmit}>
               <label>
                 邮箱

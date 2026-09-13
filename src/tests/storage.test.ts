@@ -6,11 +6,14 @@ import {
   createPerson,
   createSnapshotFromActive,
   deletePerson,
+  deterministicLegacyPersonId,
   getActiveResume,
+  insertSnapshotForPerson,
   listPersonsMeta,
   listVersionsMeta,
   loadVersionStore,
   parseVersionStore,
+  personSlice,
   saveActiveResume,
   switchActivePerson,
   switchActiveVersion,
@@ -233,6 +236,52 @@ describe('多人物工作区', () => {
     const store = deletePerson('person-1');
     expect(store.versions).toHaveLength(1);
     expect(listPersonsMeta(store)).toHaveLength(1);
+  });
+});
+
+describe('云端同步依赖的存储行为', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(createStore()));
+  });
+
+  it('v1 迁移出的人物 id 由内容派生，重复迁移结果一致', () => {
+    const legacy = createLegacyStore();
+
+    expect(deterministicLegacyPersonId(legacy)).toBe(deterministicLegacyPersonId(JSON.parse(JSON.stringify(legacy))));
+    expect(parseVersionStore(legacy)?.versions[0].personId).toBe(deterministicLegacyPersonId(legacy));
+  });
+
+  it('内容没变时 saveActiveResume 不刷新 updatedAt', () => {
+    const before = loadVersionStore();
+    const after = saveActiveResume(before.versions[0].resume);
+
+    expect(after.versions[0].updatedAt).toBe(before.versions[0].updatedAt);
+  });
+
+  it('内容变了才写入', () => {
+    const before = loadVersionStore();
+    const changed = { ...before.versions[0].resume, personal: { ...before.versions[0].resume.personal, name: '改过' } };
+    const after = saveActiveResume(changed);
+
+    expect(after.versions[0].resume.personal.name).toBe('改过');
+    expect(after.versions[0].updatedAt).not.toBe(before.versions[0].updatedAt);
+  });
+
+  it('把快照插入指定人物，不影响其他人物', () => {
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(createStore()));
+    const withPerson = createPerson('杨泰沣');
+    const target = listPersonsMeta(withPerson).find((person) => person.name === '杨泰沣')!;
+    const other = listPersonsMeta(withPerson).find((person) => person.name !== '杨泰沣')!;
+
+    const resume = { ...createDefaultResumeState(), personal: { ...createDefaultResumeState().personal, name: '旧版本内容' } };
+    const after = insertSnapshotForPerson(withPerson, target.id, resume, '云端覆盖前的本地副本', 'conflict-1');
+    const saved = JSON.parse(localStorage.getItem(VERSION_STORAGE_KEY)!) as ResumeVersionStore;
+
+    const slice = personSlice(saved, target.id);
+    expect(slice.versions.some((version) => version.id === 'conflict-1' && version.kind === 'snapshot')).toBe(true);
+    expect(personSlice(saved, other.id).versions.every((version) => version.id !== 'conflict-1')).toBe(true);
+    expect(after.versions.some((version) => version.id === 'conflict-1')).toBe(true);
   });
 });
 

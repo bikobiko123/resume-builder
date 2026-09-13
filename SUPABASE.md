@@ -47,7 +47,30 @@ to authenticated
 using (auth.uid() = user_id);
 ```
 
-`data` 直接保存现有的 `ResumeVersionStoreV1` JSON，版本管理仍由 `versions` 数组负责。当前每个用户只有一份文档。
+`data` 保存一份**只含单个人物**的 `ResumeVersionStore` JSON（该人物的草稿 + 他名下的全部快照），
+`name` 存人物名，唯一键是 `(user_id, person_id)` —— **每个用户每个物一行**。
+
+## 1b. 从「每用户一行」升级到「每人物一行」（已有数据必须执行）
+
+如果你的表是按上面的旧结构建的（只有 `unique index (user_id)`，且没有 `person_id` 列），
+请**整段一起执行**（必须同一事务，否则会出现「旧索引还在，第二个人物插不进去」或
+「旧索引已删，仍开着旧页面的标签写入报错」）：
+
+```sql
+begin;
+alter table public.resume_documents add column if not exists person_id text;
+drop index if exists resume_documents_one_per_user;
+create unique index if not exists resume_documents_one_per_person
+  on public.resume_documents(user_id, person_id);
+commit;
+```
+
+执行后**刷新页面**。旧结构遗留行（`person_id is null`）会在下次登录时被自动拆成人物行并删除；
+拆分前不会动它，拆不动就保留原样并提示。`person_id` 保持可空，唯一性只在非空时生效。
+
+如果没执行这段 SQL 就登录，应用会识别出表结构不对（错误码 `42703` / `23505` / `42P10`），
+明确提示并在本地继续工作，而不会用旧结构写坏数据。
+
 
 ## 2. 配置本地环境
 
@@ -66,11 +89,18 @@ VITE_SUPABASE_ANON_KEY=你的_publishable_或_anon_key
 
 - 使用 Supabase Email + Password 注册、登录和登出。
 - 未登录时仅使用 `localStorage`。
-- 登录后先读取本地缓存，再读取云端；云端存在数据时以云端为准。
-- 首次登录且云端没有数据时，会自动上传本地版本，并在上传前生成 `resume_builder_migration_backup_<timestamp>` 本地备份。
-- 本地和云端数据都存在且不一致时，界面会提示当前使用云端版本，本地版本仍保留在浏览器中。
-- 编辑、保存版本、切换、重命名、删除和重置都会先保存本地，再串行同步完整 JSON 到云端。
+- 登录后先读取本地缓存，再按人物读取云端各行并合并：
+  - 只存在于云端的人物 → 直接采用；
+  - 只存在于本地的人物 → 推送到云端；
+  - 两边都有且草稿内容相同 → 不写入；
+  - 两边都有但草稿不同 → **以云端为准**，并把本地那份存为该人物名下的快照「云端覆盖前的本地副本」，
+    本地独有的其他版本按 id 保留（版本并集）。
+  - 合并是幂等的：重复登录不会不断产生新的冲突副本。
+- 删除人物时会在本地记一条 tombstone，云端行确认删除后清除，避免另一台设备把它推回来。
+- 编辑、保存版本、切换、重命名、删除和重置都会先保存本地，再串行同步**该人物**的切片到云端。
 - 断网时可以继续编辑；恢复网络后会重新同步最新的本地数据。
+- 同一人物在两台设备**同时在线**编辑时是后写覆盖（冲突只在登录合并时处理，运行期不做乐观并发）。
+
 
 ## 4. Supabase Auth URL 配置
 

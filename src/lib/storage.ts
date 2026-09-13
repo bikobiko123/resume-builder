@@ -214,9 +214,29 @@ export const normalizeStore = (raw: ResumeVersionStore): ResumeVersionStore => {
   };
 };
 
+/** 稳定哈希（FNV-1a 32 位），用于从内容派生确定性 id。 */
+const stableHash = (input: string): string => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+};
+
+/**
+ * v1 迁移出的人物 id：由内容派生，同一份 v1 数据在任何设备上都得到同一个 id。
+ * 旧实现用 uid()，同一份数据在两台设备上会迁移出不同人物 id，云端会把一个人拆成两个。
+ */
+export const deterministicLegacyPersonId = (legacy: ResumeVersionStoreV1): string => {
+  const versionIds = legacy.versions.map((version) => version.id).sort();
+  if (versionIds.length === 0) return 'legacy-empty';
+  return `legacy-${stableHash([legacy.activeVersionId, ...versionIds].join('|'))}`;
+};
+
 /** v1 单人物数据迁移为 v2：所有旧版本归入同一个人物。 */
 export const migrateLegacyStore = (legacy: ResumeVersionStoreV1): ResumeVersionStore => {
-  const personId = uid();
+  const personId = deterministicLegacyPersonId(legacy);
   return normalizeStore({
     schemaVersion: SCHEMA_VERSION,
     activeVersionId: legacy.activeVersionId,
@@ -285,6 +305,211 @@ export const storeContentSignature = (store: ResumeVersionStore): string =>
     activeVersionId: store.activeVersionId,
     versions: store.versions.map(({ personId: _personId, ...rest }) => rest),
   });
+
+// ---------- 云端按人物切片 ----------
+
+/** 确定性的版本顺序：draft 优先，其次 createdAt，最后 id。跨设备结果一致。 */
+const compareVersionsForDisplay = (a: ResumeVersionRecord, b: ResumeVersionRecord): number => {
+  if (a.kind !== b.kind) return a.kind === 'draft' ? -1 : 1;
+  const byCreated = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  if (byCreated !== 0) return byCreated;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+};
+
+export const personIdsOf = (store: ResumeVersionStore): string[] =>
+  Array.from(new Set(store.versions.map((version) => version.personId)));
+
+/**
+ * 把切片里的所有版本归到指定人物 id 下。
+ * 用于把云端人物对齐到本地已存在的人物：只改 Map 的键不够，版本记录里的 personId 也必须改，
+ * 否则人物列表是从 versions 推导的，会又按旧 id 分裂出一个人物。
+ */
+export const rekeyPersonSlice = (
+  slice: ResumeVersionStore,
+  personId: string,
+): ResumeVersionStore => ({
+  ...slice,
+  versions: slice.versions.map((version) => ({ ...version, personId })),
+});
+
+/**
+ * 取出某个人物的版本切片；切片本身就是一个可直接上传/下载的完整 store。
+ * 切片的 activeVersionId 只在「该人物当前正被编辑」时沿用全局值，否则指向他自己的 draft，
+ * 避免写进一个不属于本切片的版本 id（normalizeStore 会把它静默改掉，且依赖数组顺序）。
+ */
+export const personSlice = (
+  store: ResumeVersionStore,
+  personId: string,
+): ResumeVersionStore => {
+  const versions = store.versions
+    .filter((version) => version.personId === personId)
+    .sort(compareVersionsForDisplay);
+  const activeInSlice = versions.some((version) => version.id === store.activeVersionId);
+  const fallback = versions.find((version) => version.kind === 'draft') ?? versions[0];
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeVersionId: activeInSlice ? store.activeVersionId : (fallback?.id ?? ''),
+    versions,
+  };
+};
+
+/**
+ * 切片的内容签名，用于判断「这份切片是否需要推回云端」。
+ * 只投影会影响内容的字段，忽略 activeVersionId（跨设备选择不同版本不该触发写入）。
+ */
+export const personSliceSignature = (slice: ResumeVersionStore): string => {
+  const draft = slice.versions.find((version) => version.kind === 'draft');
+  return JSON.stringify({
+    draft: draft ? draft.resume : null,
+    versions: slice.versions
+      .map((version) => ({ id: version.id, kind: version.kind, name: version.name, updatedAt: version.updatedAt }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  });
+};
+
+/**
+ * 冲突判定只看草稿正文，不看版本 id 集合。
+ * 否则「对面新增了一个快照」会被误判成冲突，进而每端各生成一份冲突副本、来回乒乓。
+ */
+export const personDraftSignature = (slice: ResumeVersionStore): string => {
+  const draft = slice.versions.find((version) => version.kind === 'draft');
+  return JSON.stringify(draft ? draft.resume : null);
+};
+
+/** 全新设备首次登录时本地会有一个空白人物；这种人物不该被推到云端占一行。 */
+export const isBlankPersonSlice = (slice: ResumeVersionStore): boolean => {
+  if (slice.versions.length !== 1) return false;
+  const only = slice.versions[0];
+  if (only.kind !== 'draft') return false;
+  const { personal, sections, photo } = only.resume;
+  const hasPersonal = Boolean(
+    personal.name?.trim() ||
+    personal.email?.trim() ||
+    personal.phone?.trim() ||
+    personal.url?.trim() ||
+    personal.summary?.trim() ||
+    (personal.titles && personal.titles.length > 0) ||
+    (personal.profiles && personal.profiles.length > 0) ||
+    personal.location?.city?.trim() ||
+    personal.location?.region?.trim()
+  );
+  return !hasPersonal && sections.length === 0 && !photo?.src;
+};
+
+export const CONFLICT_SNAPSHOT_NAME = '云端覆盖前的本地副本';
+
+/** 冲突副本的 id 由内容派生，保证重复合并命中同一条，不会每次登录都新增一份。 */
+export const conflictSnapshotId = (personId: string, localDraft: ResumeVersionRecord): string =>
+  `conflict-${personId.slice(0, 8)}-${stableHash(JSON.stringify(localDraft.resume))}`;
+
+export interface MergedPerson {
+  personId: string;
+  slice: ResumeVersionStore;
+  /** 云端内容被采用、本地那份已存成快照时为 true。 */
+  conflict: boolean;
+}
+
+/**
+ * 合并同一个人的本地切片与云端切片。
+ * 规则：草稿以云端为准；本地独有的版本按 id 保留（版本并集）；草稿内容确实不同时，
+ * 额外把本地草稿固定存成一份确定性 id 的快照，用户可在侧栏看到并切回。
+ * 幂等：第二次合并时草稿已与云端一致，不再产生新副本。
+ */
+export const mergePersonSlice = (
+  personId: string,
+  cloudSlice: ResumeVersionStore,
+  localSlice: ResumeVersionStore | null,
+): MergedPerson => {
+  const cloudDraft = cloudSlice.versions.find((version) => version.kind === 'draft');
+  const localDraft = localSlice?.versions.find((version) => version.kind === 'draft');
+
+  const byId = new Map<string, ResumeVersionRecord>();
+  // 先放本地，再用云端覆盖同 id —— 冲突以云端为准。
+  (localSlice?.versions ?? []).forEach((version) => byId.set(version.id, version));
+  cloudSlice.versions.forEach((version) => byId.set(version.id, version));
+
+  const diverged = Boolean(localDraft && cloudDraft) &&
+    personDraftSignature(localSlice as ResumeVersionStore) !== personDraftSignature(cloudSlice);
+
+  if (diverged && localDraft) {
+    const id = conflictSnapshotId(personId, localDraft);
+    byId.set(id, {
+      id,
+      personId,
+      name: CONFLICT_SNAPSHOT_NAME,
+      kind: 'snapshot',
+      resume: cloneResume(localDraft.resume),
+      createdAt: localDraft.updatedAt || nowIso(),
+      updatedAt: localDraft.updatedAt || nowIso(),
+    });
+  }
+
+  const versions = pruneSnapshots(
+    Array.from(byId.values())
+      .map((version) => ({ ...version, personId }))
+      .sort(compareVersionsForDisplay),
+  );
+  const activeVersionId = versions.some((version) => version.id === cloudSlice.activeVersionId)
+    ? cloudSlice.activeVersionId
+    : (versions.find((version) => version.kind === 'draft') ?? versions[0]).id;
+
+  return {
+    personId,
+    slice: { schemaVersion: SCHEMA_VERSION, activeVersionId, versions },
+    conflict: diverged,
+  };
+};
+
+/** 把某个人物的 store 拼回一个多人物 store，并决定全局 activeVersionId。 */
+export const assembleStore = (
+  slices: ResumeVersionStore[],
+  preferredActiveVersionId?: string,
+): ResumeVersionStore => {
+  const versions = slices
+    .flatMap((slice) => slice.versions)
+    .sort(compareVersionsForDisplay);
+  if (versions.length === 0) return createInitialStore();
+
+  const preferred = preferredActiveVersionId &&
+    versions.some((version) => version.id === preferredActiveVersionId)
+    ? preferredActiveVersionId
+    : undefined;
+  const firstDraft = versions.find((version) => version.kind === 'draft') ?? versions[0];
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeVersionId: preferred ?? firstDraft.id,
+    versions,
+  };
+};
+
+/** 把任意一份简历作为快照插入指定人物名下（云端冲突保全用）。 */
+export const insertSnapshotForPerson = (
+  store: ResumeVersionStore,
+  personId: string,
+  resume: ResumeState,
+  name: string,
+  id?: string,
+): ResumeVersionStore => {
+  const draft = draftOfPerson(store.versions, personId);
+  if (!draft) return store;
+  const timestamp = nowIso();
+  const snapshot: ResumeVersionRecord = {
+    id: id ?? uid(),
+    personId,
+    name: name.trim() || defaultSnapshotName(timestamp),
+    kind: 'snapshot',
+    resume: cloneResume(resume),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const nextStore: ResumeVersionStore = {
+    ...store,
+    versions: pruneSnapshots([...store.versions, snapshot]),
+  };
+  persistStore(nextStore);
+  return nextStore;
+};
 
 const BACKUP_KEY_PREFIX = 'resume_builder_migration_backup_';
 
@@ -388,12 +613,17 @@ export const saveActiveResume = (resume: ResumeState): ResumeVersionStore => {
   const store = loadVersionStore();
   const active = getActiveVersionRecord(store);
   const timestamp = nowIso();
+  const nextResume = normalizeResume({ ...resume, updatedAt: timestamp });
+
+  // 内容没变就不写：否则每次登录（载入后状态回写）都会无意义地改 updatedAt 并触发一次云端推送。
+  const withoutTimestamp = (value: ResumeState) => JSON.stringify({ ...value, updatedAt: '' });
+  if (withoutTimestamp(nextResume) === withoutTimestamp(active.resume)) return store;
 
   const versions = store.versions.map((version) =>
     version.id === active.id
       ? {
           ...version,
-          resume: normalizeResume({ ...resume, updatedAt: timestamp }),
+          resume: nextResume,
           updatedAt: timestamp,
         }
       : version

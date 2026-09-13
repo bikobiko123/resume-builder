@@ -13,6 +13,7 @@ interface ToolbarProps {
   onExportWord: () => void;
   wordExporting: boolean;
   onImportMarkdown: (file: File) => void;
+  personName: string;
   activeVersionName: string;
   fitScale: number;
   isScaleLow: boolean;
@@ -43,6 +44,7 @@ const Toolbar = ({
   onExportWord,
   wordExporting,
   onImportMarkdown,
+  personName,
   activeVersionName,
   fitScale,
   isScaleLow,
@@ -68,7 +70,7 @@ const Toolbar = ({
     <header className="toolbar no-print">
       <div className="toolbar-context">
         <h1>简历生成器</h1>
-        <p className="toolbar-breadcrumb">我的简历 <span>/</span> {activeVersionName}</p>
+        <p className="toolbar-breadcrumb">{personName || '未命名人物'} <span>/</span> {activeVersionName}</p>
         <div className="toolbar-status-line">
           <span className={`save-status save-status-${saveStatus}`}>{saveStatusLabel[saveStatus]}</span>
           <AuthPanel authLoading={authLoading} userEmail={userEmail} onSignedOut={onSignedOut} />

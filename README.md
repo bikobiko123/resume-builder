@@ -104,16 +104,18 @@ npm run test
 - 存储键名: `resume_builder_versions_v1`
 - 自动保存使用 300ms 防抖
 - 未配置 Supabase 或未登录时，继续使用本地模式
-- 配置 Supabase 并登录后，完整的 `ResumeVersionStoreV1` 会保存到 PostgreSQL `jsonb`
+- 配置 Supabase 并登录后，**每个物一份文档**（唯一键 `(user_id, person_id)`），
+  `data` 存该人物的草稿与全部快照；云端按人物寻址，换设备不会互相覆盖
+- 登录时按人物合并：云端赢，本地改动保留为该人物名下的快照「云端覆盖前的本地副本」
 - 断网时仍可编辑，恢复网络后会自动同步
 
-云端配置、SQL、认证 URL 和 GitHub Pages Secrets 说明见 [SUPABASE.md](./SUPABASE.md)。
+云端配置、**从旧结构升级的迁移 SQL**、认证 URL 和 GitHub Pages Secrets 说明见 [SUPABASE.md](./SUPABASE.md)。
 
 ## 数据隐私说明
 
 - 云端数据通过 Supabase Auth 按用户隔离，数据库启用 Row Level Security
 - 前端只使用 `VITE_SUPABASE_URL` 和 publishable/anon key，绝不使用 `service_role` key
-- 首次登录迁移前会保留本地备份；本地与云端同时存在且不一致时会显示提示
+- 本地与云端同一人物不一致时以云端为准，本地那份会保留为该人物名下的快照；删除人物会同步删除云端该行
 - 清除浏览器数据不会删除已登录用户的云端简历，但未登录的本地数据仍建议定期用「导出 Markdown」备份
 
 ## 项目结构
