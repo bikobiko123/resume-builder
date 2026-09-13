@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCloudBootstrap, saveCloudStore } from '../lib/cloudStorage';
 import { createDefaultResumeState } from '../types/resume';
-import type { ResumeVersionStore } from '../lib/storage';
+import { parseVersionStore, type ResumeVersionStore } from '../lib/storage';
 
 const createStore = (name: string): ResumeVersionStore => ({
   schemaVersion: 2,
@@ -36,6 +36,18 @@ describe('cloud bootstrap', () => {
     expect(decision.store).toBe(cloud);
     expect(decision.shouldUploadLocal).toBe(false);
     expect(decision.hasConflict).toBe(true);
+  });
+
+  it('云端仍是 v1、本地已迁移为 v2 且内容相同时，不应判定为冲突', () => {
+    const migrated = parseVersionStore(createStore('同一个人') as unknown)!;
+    const legacyCloud = parseVersionStore({
+      schemaVersion: 1,
+      activeVersionId: migrated.activeVersionId,
+      versions: migrated.versions.map(({ personId: _personId, ...rest }) => rest),
+    } as unknown)!;
+
+    const decision = resolveCloudBootstrap(migrated, legacyCloud);
+    expect(decision.hasConflict).toBe(false);
   });
 
   it('未配置 Supabase 时云端写入返回错误但不影响本地模式', async () => {

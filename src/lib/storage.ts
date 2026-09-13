@@ -275,6 +275,17 @@ export const parseVersionStore = (value: unknown): ResumeVersionStore | null => 
   return null;
 };
 
+/**
+ * 判断两份数据是否“内容相同”，用于本地/云端比对。
+ * 比较时忽略人物分组 id：v1 迁移成 v2 时 personId 是随机生成的，同一个人在两台设备上
+ * 会得到不同的 id，直接比较 JSON 会把内容一致的数据误判成冲突，进而暂停云同步。
+ */
+export const storeContentSignature = (store: ResumeVersionStore): string =>
+  JSON.stringify({
+    activeVersionId: store.activeVersionId,
+    versions: store.versions.map(({ personId: _personId, ...rest }) => rest),
+  });
+
 const BACKUP_KEY_PREFIX = 'resume_builder_migration_backup_';
 
 const writeBackup = (serialized: string): string | null => {

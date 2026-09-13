@@ -155,6 +155,12 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                     <div className="entries">
                       {section.educationEntries.map((entry: EducationEntry) => {
                         const honorsLabel = (entry.honorsLabel || '荣誉').trim() || '荣誉';
+                        // 空字符串条目不算内容，否则会渲染出空的“荣誉：”或多余的逗号。
+                        const honors = (entry.honors ?? []).filter((item) => item.trim());
+                        const courses = (entry.courses ?? []).filter((item) => item.trim());
+                        const highlights = (entry.highlights ?? []).filter((item) => item.trim());
+                        // 必须显式转成 boolean：直接用 a || b || c 时全为空会得到数字 0，React 会把 0 渲染出来。
+                        const hasDetails = Boolean(honors.length || courses.length || highlights.length);
                         return (
                           <div key={entry.id} className="entry">
                             <div className="entry-line1">
@@ -168,21 +174,21 @@ const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Pro
                               </span>
                               <span className="entry-date">{formatDateRange(entry.startDate, entry.endDate)}</span>
                             </div>
-                            {(entry.honors?.length || entry.courses?.length || entry.highlights?.length) && (
+                            {hasDetails && (
                               <div className="edu-details">
-                                {entry.honors && entry.honors.length > 0 && (
+                                {honors.length > 0 && (
                                   <div className="detail-item">
-                                    <strong>{honorsLabel}：</strong>{renderInlineText(entry.honors.join('，'))}
+                                    <strong>{honorsLabel}：</strong>{renderInlineText(honors.join('，'))}
                                   </div>
                                 )}
-                                {entry.courses && entry.courses.length > 0 && (
+                                {courses.length > 0 && (
                                   <div className="detail-item">
-                                    <strong>课程：</strong>{renderInlineText(entry.courses.join('，'))}
+                                    <strong>课程：</strong>{renderInlineText(courses.join('，'))}
                                   </div>
                                 )}
-                                {entry.highlights && entry.highlights.length > 0 && entry.highlights[0] && (
+                                {highlights.length > 0 && (
                                   <ul className="entry-highlights">
-                                    {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
+                                    {highlights.map((highlight, idx) => (
                                       <li key={idx}><InlineText text={highlight} /></li>
                                     ))}
                                   </ul>

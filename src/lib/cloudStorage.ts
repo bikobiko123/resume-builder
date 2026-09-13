@@ -1,4 +1,4 @@
-import { parseVersionStore, type ResumeVersionStore } from './storage';
+import { parseVersionStore, storeContentSignature, type ResumeVersionStore } from './storage';
 import { supabase } from './supabase';
 
 export interface CloudStorageResult<T> {
@@ -22,7 +22,7 @@ export const resolveCloudBootstrap = (
   return {
     store: cloudStore,
     shouldUploadLocal: false,
-    hasConflict: JSON.stringify(localStore) !== JSON.stringify(cloudStore),
+    hasConflict: storeContentSignature(localStore) !== storeContentSignature(cloudStore),
   };
 };
 
