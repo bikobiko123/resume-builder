@@ -8,10 +8,14 @@
 
 ## 功能特性
 
-- **实时预览** - 左侧编辑，右侧实时预览 A4 尺寸简历
+- **实时预览** - 左侧编辑，右侧实时预览 A4 尺寸简历；预览按面板宽度自适应缩放，但纸张始终是真实的 210mm，断行与导出结果一致
 - **Markdown 支持** - 支持 Markdown 格式的导入和导出（含 YAML frontmatter）
-- **PDF 导出** - 通过浏览器打印功能导出高质量 PDF
+- **JSON 导入导出** - 导出/导入完整状态的 `.json`（含头像、字体、字号、页头对齐、显示开关、条目 id）
+- **排版控制** - 可切换思源宋体、Anthropic Serif、Anthropic Sans，并调整字号与页头左对齐/居中
+- **PDF 导出** - 通过浏览器打印功能导出高质量 PDF；命令行也能直接出 PDF（`render --format pdf`），
+  和预览像素级一致
 - **Word 导出** - 一键导出排版还原的 .docx 文件（A4 页面、章节分隔线、右对齐日期、项目符号、粗体内联语法）
+- **命令行接口** - `resume` CLI 让 agent 读写同一份 JSON、测量排版、出稿（docx / pdf），见 [AGENTS.md](./AGENTS.md)
 - **版本管理** - 支持保存多个简历版本，自动保存到本地存储
 - **照片上传** - 支持头像上传和裁剪
 - **自适应布局** - 内容自动缩放适配 A4 纸张
@@ -73,7 +77,33 @@ npm run build
 
 ```bash
 npm run test
+
+# 只做类型检查（app + vite 配置 + CLI 三个 project）
+npm run typecheck
 ```
+
+`cli/measure.test.ts` 和 `cli/pdf.test.ts` 会真的启动一次无头 Chromium；本机没有浏览器时
+这两个文件会被跳过。
+
+## 命令行接口
+
+同一个仓库带一个给 agent 用的 CLI，直接读写简历 JSON，并复用网页预览的排版实现。
+
+```bash
+./bin/resume get --in cv.json               # 读出规范文档（含 id）
+./bin/resume patch --in cv.json --patch edits.json
+./bin/resume measure --in cv.json           # 是否还装得下一页、被缩到多少
+./bin/resume validate --in cv.json
+./bin/resume render --in cv.json --format docx --out cv.docx
+./bin/resume render --in cv.json --format pdf  --out cv.pdf
+./bin/resume --help
+```
+
+完整说明（寻址规则、patch 语义、measure 的判读阈值、PDF 的 `clipped` 语义、已知限制）
+见 [AGENTS.md](./AGENTS.md)。
+
+`measure` 和 `render --format pdf` 需要一个 Chromium：默认自动查找本机已装的
+Chrome / Chromium / Edge，也可以用 `RESUME_CHROME_PATH=/path/to/chrome` 或 `--browser` 指定。
 
 ## 使用指南
 
@@ -88,6 +118,8 @@ npm run test
 
 - **导出 Markdown** - 点击工具栏"导出 Markdown"按钮
 - **导入 Markdown** - 点击"导入 Markdown"，选择包含 YAML frontmatter 的 .md 文件
+- **导出 JSON** - 点击"•••"菜单中的"导出 JSON"，得到完整状态（含头像、字号、显示开关、条目 id）
+- **导入 JSON** - 点击"•••"菜单中的"导入 JSON"，整体替换当前草稿；这是 CLI 改完的文档回到网页版的入口
 - **导出 PDF** - 点击"导出 PDF"，使用浏览器打印功能保存为 PDF
 - **导出 Word** - 点击"•••"菜单中的"导出 Word (.docx)"，下载可直接在 Word / WPS 中编辑的文档
 

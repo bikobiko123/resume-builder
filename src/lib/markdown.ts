@@ -10,7 +10,12 @@ import type {
   SkillGroup,
   Language,
 } from '../types/resume';
-import { createResumeSection, normalizeResumeFontSize } from '../types/resume';
+import {
+  createResumeSection,
+  normalizeResumeFontFamily,
+  normalizeResumeFontSize,
+  normalizeResumeHeaderAlignment,
+} from '../types/resume';
 import { parseSkillGroupLine, sanitizeSkillGroups } from './skills';
 
 // Export resume to Markdown format
@@ -32,6 +37,8 @@ export const exportToMarkdown = (resume: ResumeState): string => {
     showPhone: resume.showPhone,
     showTitle: resume.showTitle,
     fontSizePt: resume.fontSizePt,
+    fontFamily: resume.fontFamily,
+    headerAlignment: resume.headerAlignment,
     updatedAt: resume.updatedAt,
   };
 
@@ -298,6 +305,8 @@ export const importFromMarkdown = (content: string): Partial<ResumeState> | null
       },
       sections,
       fontSizePt: normalizeResumeFontSize(frontmatter.fontSizePt),
+      fontFamily: normalizeResumeFontFamily(frontmatter.fontFamily),
+      headerAlignment: normalizeResumeHeaderAlignment(frontmatter.headerAlignment),
       showPhoto: (frontmatter.showPhoto as boolean) ?? false,
       showAddress: (frontmatter.showAddress as boolean) ?? true,
       showPhone: (frontmatter.showPhone as boolean) ?? true,

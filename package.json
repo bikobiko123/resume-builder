@@ -24,9 +24,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.cli.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.cli.json --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "resume": "tsx cli/index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",
@@ -42,6 +44,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "jszip": "^3.10.2",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"

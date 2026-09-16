@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { User } from '@supabase/supabase-js';
 import Toolbar, { type SaveStatus } from './components/Toolbar';
 import EditorPanel from './components/EditorPanel';
 import PreviewA4 from './components/PreviewA4';
 import VersionManagerModal from './components/VersionManagerModal';
 import WorkspaceSidebar from './components/WorkspaceSidebar';
-import { computeFitScale } from './lib/fitScale';
+import { clampPreviewZoom, fitPreviewZoom, PREVIEW_ZOOM_STEP } from './lib/a4';
 import { exportPdf, preparePrint } from './lib/pdf';
 import {
   deleteCloudPerson,
@@ -42,10 +42,17 @@ import {
   type ResumeVersionStore,
 } from './lib/storage';
 import { exportToMarkdown, downloadMarkdown, parseMarkdownFile, importFromMarkdown } from './lib/markdown';
+import { assignResumeIds } from './lib/ids';
+import { normalizeResume } from './lib/resumeSchema';
+import { downloadText } from './lib/download';
 import {
   createDefaultResumeState,
   createResumeSection,
+  normalizeResumeFontFamily,
   normalizeResumeFontSize,
+  normalizeResumeHeaderAlignment,
+  type ResumeFontFamily,
+  type ResumeHeaderAlignment,
   type ResumeState,
   type SectionType,
   type PhotoData,
@@ -85,8 +92,12 @@ const storeContentChanged = (before: ResumeVersionStore, after: ResumeVersionSto
 
 const App = () => {
   const [resume, setResume] = useState<ResumeState>(createDefaultResumeState);
-  const [fitScale, setFitScale] = useState(1);
-  const [previewZoom, setPreviewZoom] = useState(0.72);
+  const [pageFillRatio, setPageFillRatio] = useState(0);
+  /** Zoom that makes the 210mm sheet fit the panel, tracked from the panel's own width. */
+  const [fitZoom, setFitZoom] = useState(1);
+  /** A zoom the user pinned with ±; null means "follow the panel width". */
+  const [manualZoom, setManualZoom] = useState<number | null>(null);
+  const previewZoom = manualZoom ?? fitZoom;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [measureVersion, setMeasureVersion] = useState(0);
   const [hydrated, setHydrated] = useState(false);
@@ -380,7 +391,7 @@ const App = () => {
     return () => window.removeEventListener('afterprint', cleanup);
   }, []);
 
-  const isScaleLow = useMemo(() => fitScale < 0.72, [fitScale]);
+  const isOverflowing = pageFillRatio > 1.001;
   const activeVersionName = useMemo(
     () => versionsMeta.find((version) => version.id === activeVersionId)?.name || '当前草稿',
     [versionsMeta, activeVersionId]
@@ -391,16 +402,31 @@ const App = () => {
   );
 
   const handleMeasure = (naturalHeight: number, frameHeight: number) => {
-    const next = computeFitScale(naturalHeight, frameHeight);
-    setFitScale((prev) => (Math.abs(prev - next) < 0.01 ? prev : next));
+    const next = frameHeight > 0 ? naturalHeight / frameHeight : 0;
+    setPageFillRatio((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
   };
 
-  const handleExport = () => {
-    setMeasureVersion((prev) => prev + 1);
-    window.setTimeout(() => {
-      preparePrint();
-      exportPdf();
-    }, 80);
+  /**
+   * The preview sheet is always a full 210mm wide (see `a4.css`), so the panel
+   * decides how much of it you can see, not how it lays out. Reported on mount
+   * and on every panel resize.
+   */
+  const handleStageWidth = useCallback((contentWidth: number) => {
+    const next = fitPreviewZoom(contentWidth);
+    setFitZoom((prev) => (Math.abs(prev - next) < 0.005 ? prev : next));
+  }, []);
+
+  const zoomPreviewBy = (delta: number) => {
+    setManualZoom(clampPreviewZoom(previewZoom + delta));
+  };
+
+  const handleExport = async () => {
+    if (isOverflowing) {
+      alert(`当前内容超出 A4 ${Math.round((pageFillRatio - 1) * 100)}%，请先精简内容或降低字号。为保证预览与 PDF 一致，本次没有自动缩小或导出。`);
+      return;
+    }
+    await preparePrint();
+    exportPdf();
   };
 
   const handleReset = () => {
@@ -515,6 +541,43 @@ const App = () => {
     }
   };
 
+  /**
+   * The canonical document the CLI reads and writes: full state (photo, font
+   * size, visibility toggles) plus stable ids, as plain readable JSON.
+   *
+   * Ids are regenerated from content on the way out (`rewrite`) so the exported
+   * file is immediately addressable by an agent — the editor's own ids are
+   * random uuids. The draft in the browser is untouched; it only picks up the
+   * readable ids if this file is imported back.
+   */
+  const handleExportJson = () => {
+    const canonical = assignResumeIds(normalizeResume(resume).resume, { rewrite: true }).resume;
+    const filename = `${resume.personal.name || '简历'}_${new Date().toISOString().split('T')[0]}`;
+    downloadText(`${JSON.stringify(canonical, null, 2)}\n`, `${filename}.json`, 'application/json');
+  };
+
+  const handleImportJson = async (file: File) => {
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const { resume: incoming, warnings } = normalizeResume(parsed);
+      const { resume: withIds } = assignResumeIds(incoming);
+
+      if (!window.confirm(`导入会整体替换当前草稿（${resume.personal.name || '未命名'}）。继续吗？`)) return;
+
+      setResume({ ...withIds, updatedAt: new Date().toISOString() });
+      setMeasureVersion((prev) => prev + 1);
+
+      if (warnings.length > 0) {
+        console.warn('导入 JSON 时修正的字段：', warnings);
+        alert(`导入成功，但有 ${warnings.length} 处字段类型不对已被修正，详情见控制台。`);
+        return;
+      }
+      alert('导入成功！');
+    } catch (error) {
+      alert(`导入 JSON 失败：${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
   const updatePersonal = (updates: Partial<ResumeState['personal']>) => {
     setResume((prev) => ({ ...prev, personal: { ...prev.personal, ...updates } }));
   };
@@ -531,6 +594,16 @@ const App = () => {
 
   const updateFontSize = (fontSizePt: number) => {
     setResume((prev) => ({ ...prev, fontSizePt: normalizeResumeFontSize(fontSizePt) }));
+    setMeasureVersion((prev) => prev + 1);
+  };
+
+  const updateFontFamily = (fontFamily: ResumeFontFamily) => {
+    setResume((prev) => ({ ...prev, fontFamily: normalizeResumeFontFamily(fontFamily) }));
+    setMeasureVersion((prev) => prev + 1);
+  };
+
+  const updateHeaderAlignment = (headerAlignment: ResumeHeaderAlignment) => {
+    setResume((prev) => ({ ...prev, headerAlignment: normalizeResumeHeaderAlignment(headerAlignment) }));
     setMeasureVersion((prev) => prev + 1);
   };
 
@@ -579,12 +652,18 @@ const App = () => {
         onExportWord={handleExportWord}
         wordExporting={wordExporting}
         onImportMarkdown={handleImportMarkdown}
+        onExportJson={handleExportJson}
+        onImportJson={handleImportJson}
         personName={activePersonName}
         activeVersionName={activeVersionName}
-        fitScale={fitScale}
-        isScaleLow={isScaleLow}
+        pageFillRatio={pageFillRatio}
+        isOverflowing={isOverflowing}
         fontSizePt={resume.fontSizePt}
         onFontSizeChange={updateFontSize}
+        fontFamily={resume.fontFamily}
+        onFontFamilyChange={updateFontFamily}
+        headerAlignment={resume.headerAlignment}
+        onHeaderAlignmentChange={updateHeaderAlignment}
         authLoading={authLoading}
         userEmail={user?.email}
         onSignedOut={() => setUser(null)}
@@ -592,7 +671,7 @@ const App = () => {
         cloudNotice={localNotice || cloudNotice}
       />
 
-      {isScaleLow ? <p className="scale-warning no-print">内容较多，当前缩放低于 72%，建议精简内容以保证可读性。</p> : null}
+      {isOverflowing ? <p className="scale-warning no-print">内容已超出 A4，系统不会自动缩小。请先精简内容或降低字号后再导出。</p> : null}
 
       <main className={`workspace ${sidebarCollapsed ? 'workspace-sidebar-collapsed' : ''}`}>
         <WorkspaceSidebar
@@ -635,14 +714,21 @@ const App = () => {
               <strong>A4 页面</strong>
             </div>
             <div className="preview-controls">
-              <button type="button" onClick={() => setPreviewZoom((zoom) => Math.max(0.45, Number((zoom - 0.1).toFixed(2))))} aria-label="缩小预览">−</button>
-              <span>{Math.round(previewZoom * 100)}%</span>
-              <button type="button" onClick={() => setPreviewZoom((zoom) => Math.min(1.4, Number((zoom + 0.1).toFixed(2))))} aria-label="放大预览">＋</button>
-              <button type="button" onClick={() => setPreviewZoom(0.72)} aria-label="重置预览缩放">重置</button>
+              <button type="button" onClick={() => zoomPreviewBy(-PREVIEW_ZOOM_STEP)} aria-label="缩小预览">−</button>
+              <span title={manualZoom === null ? '按面板宽度自适应' : '手动缩放'}>
+                {Math.round(previewZoom * 100)}%{manualZoom === null ? ' 自适应' : ''}
+              </span>
+              <button type="button" onClick={() => zoomPreviewBy(PREVIEW_ZOOM_STEP)} aria-label="放大预览">＋</button>
+              <button type="button" onClick={() => setManualZoom(null)} aria-label="按面板宽度自适应">适应宽度</button>
             </div>
           </div>
           <div className="preview-viewport" style={{ '--preview-zoom': previewZoom } as CSSProperties}>
-            <PreviewA4 resume={resume} fitScale={fitScale} measureVersion={measureVersion} onMeasure={handleMeasure} />
+            <PreviewA4
+              resume={resume}
+              measureVersion={measureVersion}
+              onMeasure={handleMeasure}
+              onStageWidth={handleStageWidth}
+            />
           </div>
         </section>
       </main>

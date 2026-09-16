@@ -1,0 +1,10 @@
+#!/bin/sh
+# Entry point for the agent-facing CLI. Run from any directory:
+#
+#   ./bin/resume get --in cv.json
+#
+# TypeScript is executed directly by tsx, so there is no build step between
+# editing a command and using it.
+set -e
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec "$root/node_modules/.bin/tsx" "$root/cli/index.ts" "$@"

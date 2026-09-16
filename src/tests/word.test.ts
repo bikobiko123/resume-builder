@@ -15,6 +15,14 @@ const extractDocumentXml = async (resume: ReturnType<typeof createDefaultResumeS
   return docXml;
 };
 
+const extractStylesXml = async (resume: ReturnType<typeof createDefaultResumeState>): Promise<string> => {
+  const blob = await resumeToDocxBlob(resume);
+  const zip = await jszip.loadAsync(await blob.arrayBuffer());
+  const stylesXml = await zip.file('word/styles.xml')?.async('string');
+  if (!stylesXml) throw new Error('word/styles.xml missing from .docx package');
+  return stylesXml;
+};
+
 describe('Word export', () => {
   it('produces a valid docx (zip) package with A4 page settings', async () => {
     const docXml = await extractDocumentXml(createDefaultResumeState());
@@ -47,6 +55,25 @@ describe('Word export', () => {
 
     expect(docXml).toContain('<w:b/>');
     expect(docXml).toContain('核心系统');
+  });
+
+  it('uses the selected font family in the Word defaults', async () => {
+    const resume = createDefaultResumeState();
+    resume.fontFamily = 'anthropic-serif';
+    const stylesXml = await extractStylesXml(resume);
+    expect(stylesXml).toContain('Anthropic Serif');
+  });
+
+  it('uses the selected header alignment in Word', async () => {
+    const left = createDefaultResumeState();
+    left.headerAlignment = 'left';
+    const leftXml = await extractDocumentXml(left);
+    expect(leftXml).toContain('<w:jc w:val="left"/>');
+
+    const centered = createDefaultResumeState();
+    centered.headerAlignment = 'center';
+    const centeredXml = await extractDocumentXml(centered);
+    expect(centeredXml).toContain('<w:jc w:val="center"/>');
   });
 
   it('skips hidden sections and empty custom sections', async () => {

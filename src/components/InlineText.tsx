@@ -1,29 +1,18 @@
 import type { ReactNode } from 'react';
+import { hasInlineMarkup, splitInlineSegments } from '../lib/inline';
 
 interface InlineTextProps {
   text: string;
 }
 
 export const renderInlineText = (text: string): ReactNode => {
-  const nodes: ReactNode[] = [];
-  const pattern = /\*\*(.+?)\*\*/gu;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
+  // Plain text is handed back as-is (not wrapped in an array) so React renders
+  // exactly one text child, matching the previous implementation.
+  if (!hasInlineMarkup(text)) return text;
 
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
-    }
-
-    nodes.push(<strong key={`${match.index}-${match[1]}`}>{match[1]}</strong>);
-    lastIndex = pattern.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
-  }
-
-  return nodes.length > 0 ? nodes : text;
+  return splitInlineSegments(text).map((segment, index) =>
+    segment.bold ? <strong key={index}>{segment.text}</strong> : segment.text,
+  );
 };
 
 const InlineText = ({ text }: InlineTextProps) => <>{renderInlineText(text)}</>;

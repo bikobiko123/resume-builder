@@ -1,311 +1,107 @@
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
-import {
-  DEFAULT_RESUME_FONT_SIZE_PT,
-  type ResumeState,
-  type WorkEntry,
-  type EducationEntry,
-  type ProjectEntry,
-  type AwardEntry,
-  type CertificateEntry,
-} from '../types/resume';
-import InlineText, { renderInlineText } from './InlineText';
-import { sanitizeSkillGroups } from '../lib/skills';
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
+import type { ResumeState } from '../types/resume';
+import { renderResumeBody } from '../lib/html';
+import { resumeFontStack } from '../lib/fonts';
 
 interface PreviewA4Props {
   resume: ResumeState;
-  fitScale: number;
   measureVersion: number;
   onMeasure: (naturalHeight: number, frameHeight: number) => void;
+  /**
+   * Content-box width available to the sheet, reported on mount and whenever the
+   * panel is resized. The sheet itself is always 210mm wide (see `a4.css`) and
+   * never shrinks, so callers use this to pick a zoom that makes it fit.
+   */
+  onStageWidth?: (contentWidth: number) => void;
 }
 
-// Format date range for display
-const formatDateRange = (start: string, end: string): string => {
-  const startStr = start || '';
-  const endStr = end === 'present' ? '至今' : (end || '');
-  if (startStr && endStr) return `${startStr} - ${endStr}`;
-  if (startStr) return startStr;
-  return endStr;
-};
-
-const PreviewA4 = ({ resume, fitScale, measureVersion, onMeasure }: PreviewA4Props) => {
+/**
+ * The on-screen A4 preview.
+ *
+ * The document body is produced by `renderResumeBody` — the same function the
+ * headless `measure` command and the PDF export use — so what the browser
+ * measures here and what the CLI measures off-screen can never drift apart.
+ * This component only owns the frame, the CSS custom properties and the
+ * height measurement.
+ *
+ * `dangerouslySetInnerHTML` is deliberate and safe here: `renderResumeBody`
+ * escapes every value it interpolates (see the escaping contract in
+ * `src/lib/html.ts`) and emits only its own tags, so nothing from the resume —
+ * including an imported one — reaches the DOM as markup.
+ */
+const PreviewA4 = ({ resume, measureVersion, onMeasure, onStageWidth }: PreviewA4Props) => {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  const bodyHtml = useMemo(() => renderResumeBody(resume), [resume]);
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
     const content = contentRef.current;
     if (!frame || !content) return;
 
-    const rafId = requestAnimationFrame(() => {
-      onMeasure(content.scrollHeight, frame.clientHeight);
+    let rafId = 0;
+    const measure = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const lastChild = content.lastElementChild as HTMLElement | null;
+        const paddingBottom = Number.parseFloat(getComputedStyle(content).paddingBottom) || 0;
+        const naturalHeight = lastChild
+          ? lastChild.offsetTop + lastChild.offsetHeight + paddingBottom
+          : content.scrollHeight;
+        onMeasure(naturalHeight, frame.clientHeight);
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    Array.from(content.children).forEach((child) => observer.observe(child));
+
+    void document.fonts.ready.then(() => {
+      measure();
     });
 
-    return () => cancelAnimationFrame(rafId);
-  }, [resume, fitScale, measureVersion, onMeasure]);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(rafId);
+    };
+  }, [bodyHtml, measureVersion, onMeasure]);
 
-  const { personal } = resume;
-  const shouldShowPhoto = resume.showPhoto && resume.photo?.src;
-  const fontScale = resume.fontSizePt / DEFAULT_RESUME_FONT_SIZE_PT;
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !onStageWidth) return;
+
+    const report = () => {
+      const style = getComputedStyle(stage);
+      const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      onStageWidth(stage.clientWidth - padding);
+    };
+
+    // Report once synchronously so the first paint already uses the fitted zoom.
+    report();
+
+    const observer = new ResizeObserver(report);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [onStageWidth]);
+
   const contentStyle = {
-    transform: `scale(${fitScale})`,
     '--resume-font-size': `${resume.fontSizePt}pt`,
-    '--resume-font-scale': fontScale.toFixed(3),
+    '--resume-font-family': resumeFontStack(resume.fontFamily),
   } as CSSProperties;
-
-  // Build contact items array based on visibility toggles
-  const contactItems: string[] = [];
-  if (personal.email && resume.showEmail) contactItems.push(personal.email);
-  if (personal.phone && resume.showPhone) contactItems.push(personal.phone);
-  if (personal.url && resume.showUrl) contactItems.push(personal.url);
-  if (resume.showProfiles) {
-    personal.profiles?.forEach(p => {
-      contactItems.push(`${p.network}: ${p.url}`);
-    });
-  }
-
-  // Location string
-  const locationParts: string[] = [];
-  if (personal.location?.city) locationParts.push(personal.location.city);
-  if (personal.location?.region) locationParts.push(personal.location.region);
-  const locationStr = locationParts.join(', ');
 
   return (
     <section className="preview-document" id="print-root">
-      <div className="a4-stage">
+      <div className="a4-stage" ref={stageRef}>
         <div className="a4-page" ref={frameRef}>
-          <div className="a4-content" ref={contentRef} style={contentStyle}>
-            {/* Header - imprecv style */}
-            <header className={shouldShowPhoto ? 'resume-header resume-header-with-photo' : 'resume-header'}>
-              <div className="header-content">
-                {resume.showName && <h1>{personal.name}</h1>}
-
-                {personal.titles && personal.titles.length > 0 && resume.showTitle && (
-                  <div className="resume-titles">
-                    {personal.titles.join(' / ')}
-                  </div>
-                )}
-
-                {locationStr && resume.showAddress && (
-                  <div className="resume-location">{locationStr}</div>
-                )}
-
-                {contactItems.length > 0 && (
-                  <div className="resume-contact">
-                    {contactItems.map((item, index) => (
-                      <span key={index} className="contact-item">
-                        {item}
-                        {index < contactItems.length - 1 && (
-                          <span className="separator">◆</span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {personal.summary && resume.showSummary && (
-                  <div className="resume-summary"><InlineText text={personal.summary} /></div>
-                )}
-              </div>
-
-              {shouldShowPhoto && (
-                <div className="avatar-box">
-                  <img src={resume.photo!.src} alt="头像" />
-                </div>
-              )}
-            </header>
-
-            {/* Sections */}
-            {resume.sections
-              .filter((section) => section.visible)
-              .map((section) => (
-                <section className="resume-section" key={section.id}>
-                  <h2>{section.title}</h2>
-
-                  {/* Work Experience */}
-                  {section.type === 'work' && section.workEntries && (
-                    <div className="entries">
-                      {section.workEntries.map((entry: WorkEntry) => (
-                        <div key={entry.id} className="entry">
-                          <div className="entry-line1">
-                            <span className="entry-org">{entry.organization}</span>
-                            <span className="entry-location">{entry.location}</span>
-                          </div>
-                          {entry.positions.map((pos) => (
-                            <div key={pos.id}>
-                              <div className="entry-line2">
-                                <span className="entry-position">{pos.position}</span>
-                                <span className="entry-date">{formatDateRange(pos.startDate, pos.endDate)}</span>
-                              </div>
-                              {pos.highlights.length > 0 && pos.highlights[0] && (
-                                <ul className="entry-highlights">
-                                  {pos.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                    <li key={idx}><InlineText text={highlight} /></li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Education */}
-                  {section.type === 'education' && section.educationEntries && (
-                    <div className="entries">
-                      {section.educationEntries.map((entry: EducationEntry) => {
-                        const honorsLabel = (entry.honorsLabel || '荣誉').trim() || '荣誉';
-                        // 空字符串条目不算内容，否则会渲染出空的“荣誉：”或多余的逗号。
-                        const honors = (entry.honors ?? []).filter((item) => item.trim());
-                        const courses = (entry.courses ?? []).filter((item) => item.trim());
-                        const highlights = (entry.highlights ?? []).filter((item) => item.trim());
-                        // 必须显式转成 boolean：直接用 a || b || c 时全为空会得到数字 0，React 会把 0 渲染出来。
-                        const hasDetails = Boolean(honors.length || courses.length || highlights.length);
-                        return (
-                          <div key={entry.id} className="entry">
-                            <div className="entry-line1">
-                              <span className="entry-org">{entry.institution}</span>
-                              <span className="entry-location">{entry.location}</span>
-                            </div>
-                            <div className="entry-line2">
-                              <span className="edu-degree">
-                                {entry.studyType}
-                                {entry.area && ` - ${entry.area}`}
-                              </span>
-                              <span className="entry-date">{formatDateRange(entry.startDate, entry.endDate)}</span>
-                            </div>
-                            {hasDetails && (
-                              <div className="edu-details">
-                                {honors.length > 0 && (
-                                  <div className="detail-item">
-                                    <strong>{honorsLabel}：</strong>{renderInlineText(honors.join('，'))}
-                                  </div>
-                                )}
-                                {courses.length > 0 && (
-                                  <div className="detail-item">
-                                    <strong>课程：</strong>{renderInlineText(courses.join('，'))}
-                                  </div>
-                                )}
-                                {highlights.length > 0 && (
-                                  <ul className="entry-highlights">
-                                    {highlights.map((highlight, idx) => (
-                                      <li key={idx}><InlineText text={highlight} /></li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Projects */}
-                  {section.type === 'project' && section.projectEntries && (
-                    <div className="entries">
-                      {section.projectEntries.map((entry: ProjectEntry) => (
-                        <div key={entry.id} className="entry">
-                          <div className="entry-line1">
-                            <span className="entry-org">{entry.name}</span>
-                          </div>
-                          <div className="entry-line2">
-                            <span className="entry-position">{entry.affiliation}</span>
-                            <span className="entry-date">{formatDateRange(entry.startDate, entry.endDate)}</span>
-                          </div>
-                          {entry.highlights.length > 0 && entry.highlights[0] && (
-                            <ul className="entry-highlights">
-                              {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                <li key={idx}><InlineText text={highlight} /></li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Awards */}
-                  {section.type === 'awards' && section.awardEntries && (
-                    <div className="entries">
-                      {section.awardEntries.map((entry: AwardEntry) => (
-                        <div key={entry.id} className="entry">
-                          <div className="award-line1">
-                            <span className="award-title">{entry.title}</span>
-                            <span className="entry-date">{entry.date}</span>
-                          </div>
-                          <div className="award-issuer">
-                            <em>{entry.issuer}</em>
-                            {entry.location && ` · ${entry.location}`}
-                          </div>
-                          {entry.highlights && entry.highlights.length > 0 && entry.highlights[0] && (
-                            <ul className="entry-highlights">
-                              {entry.highlights.filter(h => h.trim()).map((highlight, idx) => (
-                                <li key={idx}><InlineText text={highlight} /></li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Certificates */}
-                  {section.type === 'certs' && section.certificateEntries && (
-                    <div className="entries">
-                      {section.certificateEntries.map((entry: CertificateEntry) => (
-                        <div key={entry.id} className="entry">
-                          <div className="cert-line1">
-                            <span className="cert-name">{entry.name}</span>
-                            <span className="entry-date">{entry.date}</span>
-                          </div>
-                          <div className="cert-issuer">
-                            <em>{entry.issuer}</em>
-                            {entry.id && ` · ID: ${entry.id}`}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Skills */}
-                  {section.type === 'skills' && (
-                    <div className="skills-content">
-                      {section.languages && section.languages.length > 0 && (
-                        <div className="skill-category">
-                          <span className="skill-label">语言：</span>
-                          {renderInlineText(section.languages.map(l => `${l.language} (${l.fluency})`).join('，'))}
-                        </div>
-                      )}
-                      {sanitizeSkillGroups(section.skillGroups).map((group, idx) => (
-                        <div key={idx} className="skill-category">
-                          <span className="skill-label">{group.category}：</span>
-                          {renderInlineText(group.skills.join('，'))}
-                        </div>
-                      ))}
-                      {section.interests && section.interests.length > 0 && (
-                        <div className="skill-category">
-                          <span className="skill-label">兴趣爱好：</span>
-                          {section.interests.join('，')}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Custom/Legacy sections */}
-                  {section.items && section.items.length > 0 && (
-                    <div className="custom-content">
-                      {section.items
-                        .map((item) => item.text.trim())
-                        .filter(Boolean)
-                        .map((text, index) => (
-                          <div key={index} style={{ marginBottom: '4px' }}><InlineText text={text} /></div>
-                        ))}
-                    </div>
-                  )}
-                </section>
-              ))}
-          </div>
+          <div
+            className="a4-content"
+            ref={contentRef}
+            style={contentStyle}
+            dangerouslySetInnerHTML={{ __html: bodyHtml }}
+          />
         </div>
       </div>
     </section>

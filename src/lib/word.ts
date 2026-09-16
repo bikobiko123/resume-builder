@@ -22,6 +22,7 @@ import type {
   ResumeSection,
 } from '../types/resume';
 import { sanitizeSkillGroups } from './skills';
+import { resumeWordFont } from './fonts';
 
 /**
  * Word (.docx) export.
@@ -34,8 +35,6 @@ import { sanitizeSkillGroups } from './skills';
 
 // 1 pt = 20 half-points (docx TextRun size unit)
 const PT = 20;
-
-const SERIF_FONTS = ['Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', 'serif'];
 
 // A4: 210mm x 297mm. docx already defaults to A4, but pin it explicitly.
 const PAGE_SIZE = {
@@ -408,6 +407,7 @@ interface HeaderLines {
 
 const buildHeader = (resume: ResumeState): HeaderLines => {
   const { personal } = resume;
+  const headerAlignment = resume.headerAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
   const contactItems: string[] = [];
   if (personal.email && resume.showEmail) contactItems.push(personal.email);
   if (personal.phone && resume.showPhone) contactItems.push(personal.phone);
@@ -425,7 +425,7 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
   if (resume.showName) {
     nameLines.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 80 },
         children: [new TextRun({ text: personal.name, bold: true, size: scaledPt(24, resume.fontSizePt) })],
       }),
@@ -435,7 +435,7 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
   if (personal.titles && personal.titles.length > 0 && resume.showTitle) {
     nameLines.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 40 },
         children: [new TextRun({ text: personal.titles.join(' / '), italics: true, size: scaledPt(13, resume.fontSizePt) })],
       }),
@@ -445,7 +445,7 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
   if (locationStr && resume.showAddress) {
     nameLines.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 40 },
         children: [new TextRun({ text: locationStr, size: scaledPt(11, resume.fontSizePt) })],
       }),
@@ -455,7 +455,7 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
   if (contactItems.length > 0) {
     nameLines.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: headerAlignment,
         spacing: { after: 40 },
         children: [new TextRun({ text: contactItems.join('  ◆  '), size: scaledPt(11, resume.fontSizePt) })],
       }),
@@ -544,7 +544,7 @@ export const buildResumeDocx = async (resume: ResumeState): Promise<Document> =>
       default: {
         document: {
           run: {
-            font: SERIF_FONTS[0],
+            font: resumeWordFont(resume.fontFamily),
             size: hp,
           },
         },

@@ -1,6 +1,12 @@
 import { useRef } from 'react';
 import AuthPanel from './AuthPanel';
-import { MAX_RESUME_FONT_SIZE_PT, MIN_RESUME_FONT_SIZE_PT } from '../types/resume';
+import {
+  MAX_RESUME_FONT_SIZE_PT,
+  MIN_RESUME_FONT_SIZE_PT,
+  type ResumeFontFamily,
+  type ResumeHeaderAlignment,
+} from '../types/resume';
+import { RESUME_FONT_OPTIONS } from '../lib/fonts';
 
 export type SaveStatus = 'idle' | 'saving-local' | 'saving-cloud' | 'saved' | 'offline' | 'error';
 
@@ -13,12 +19,18 @@ interface ToolbarProps {
   onExportWord: () => void;
   wordExporting: boolean;
   onImportMarkdown: (file: File) => void;
+  onExportJson: () => void;
+  onImportJson: (file: File) => void;
   personName: string;
   activeVersionName: string;
-  fitScale: number;
-  isScaleLow: boolean;
+  pageFillRatio: number;
+  isOverflowing: boolean;
   fontSizePt: number;
   onFontSizeChange: (fontSizePt: number) => void;
+  fontFamily: ResumeFontFamily;
+  onFontFamilyChange: (fontFamily: ResumeFontFamily) => void;
+  headerAlignment: ResumeHeaderAlignment;
+  onHeaderAlignmentChange: (alignment: ResumeHeaderAlignment) => void;
   authLoading: boolean;
   userEmail?: string;
   onSignedOut: () => void;
@@ -44,12 +56,18 @@ const Toolbar = ({
   onExportWord,
   wordExporting,
   onImportMarkdown,
+  onExportJson,
+  onImportJson,
   personName,
   activeVersionName,
-  fitScale,
-  isScaleLow,
+  pageFillRatio,
+  isOverflowing,
   fontSizePt,
   onFontSizeChange,
+  fontFamily,
+  onFontFamilyChange,
+  headerAlignment,
+  onHeaderAlignmentChange,
   authLoading,
   userEmail,
   onSignedOut,
@@ -57,11 +75,20 @@ const Toolbar = ({
   cloudNotice,
 }: ToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onImportMarkdown(file);
+      e.target.value = '';
+    }
+  };
+
+  const handleJsonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onImportJson(file);
       e.target.value = '';
     }
   };
@@ -78,11 +105,40 @@ const Toolbar = ({
         {cloudNotice ? <p className="cloud-notice">{cloudNotice}</p> : null}
       </div>
       <div className="toolbar-actions">
+        <div className="header-alignment-control" role="group" aria-label="页头对齐方式">
+          <span>页头</span>
+          <button
+            type="button"
+            className={headerAlignment === 'left' ? 'active' : ''}
+            aria-pressed={headerAlignment === 'left'}
+            onClick={() => onHeaderAlignmentChange('left')}
+          >左对齐</button>
+          <button
+            type="button"
+            className={headerAlignment === 'center' ? 'active' : ''}
+            aria-pressed={headerAlignment === 'center'}
+            onClick={() => onHeaderAlignmentChange('center')}
+          >居中</button>
+        </div>
+        <label className="font-family-control">
+          <span>字体</span>
+          <select
+            value={fontFamily}
+            onChange={(event) => onFontFamilyChange(event.target.value as ResumeFontFamily)}
+            aria-label="选择简历字体"
+          >
+            {RESUME_FONT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
         <label className="font-size-control">
           <span>字号 {fontSizePt.toFixed(1)}pt</span>
           <input type="range" min={MIN_RESUME_FONT_SIZE_PT} max={MAX_RESUME_FONT_SIZE_PT} step="0.1" value={fontSizePt} onChange={(event) => onFontSizeChange(Number(event.target.value))} aria-label="调整简历字号" />
         </label>
-        <span className={isScaleLow ? 'scale-status scale-status-warn' : 'scale-status'}>预览 {Math.round(fitScale * 100)}%</span>
+        <span className={isOverflowing ? 'scale-status scale-status-warn' : 'scale-status'}>
+          {isOverflowing ? `超出 ${Math.round((pageFillRatio - 1) * 100)}%` : `页面占用 ${Math.round(pageFillRatio * 100)}%`}
+        </span>
         <button type="button" className="btn btn-primary" onClick={onExport}>导出 PDF</button>
         <details className="toolbar-menu">
           <summary aria-label="更多操作">•••</summary>
@@ -93,11 +149,14 @@ const Toolbar = ({
             <button type="button" onClick={onExportWord} disabled={wordExporting}>
               {wordExporting ? '正在导出 Word…' : '导出 Word (.docx)'}
             </button>
+            <button type="button" onClick={() => jsonInputRef.current?.click()}>导入 JSON</button>
+            <button type="button" onClick={onExportJson}>导出 JSON</button>
             <button type="button" onClick={onSaveVersion}>保存版本</button>
             <button type="button" onClick={onOpenVersionManager}>版本管理</button>
           </div>
         </details>
         <input ref={fileInputRef} type="file" accept=".md,.markdown" onChange={handleFileChange} style={{ display: 'none' }} />
+        <input ref={jsonInputRef} type="file" accept=".json,application/json" onChange={handleJsonFileChange} style={{ display: 'none' }} />
       </div>
     </header>
   );

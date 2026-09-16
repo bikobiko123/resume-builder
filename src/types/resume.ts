@@ -151,6 +151,8 @@ export interface ResumeState {
   photo?: PhotoData;
   updatedAt: string;
   fontSizePt: number;
+  fontFamily: ResumeFontFamily;
+  headerAlignment: ResumeHeaderAlignment;
   // User preferences - visibility toggles for personal info sections
   showPhoto: boolean;
   showName: boolean;
@@ -163,9 +165,24 @@ export interface ResumeState {
   showSummary: boolean;
 }
 
-export const MIN_RESUME_FONT_SIZE_PT = 9;
+export const MIN_RESUME_FONT_SIZE_PT = 8.5;
 export const MAX_RESUME_FONT_SIZE_PT = 13;
-export const DEFAULT_RESUME_FONT_SIZE_PT = 11;
+export const DEFAULT_RESUME_FONT_SIZE_PT = 9.5;
+
+export type ResumeFontFamily = 'source-han-serif' | 'anthropic-serif' | 'anthropic-sans';
+export const DEFAULT_RESUME_FONT_FAMILY: ResumeFontFamily = 'source-han-serif';
+export type ResumeHeaderAlignment = 'left' | 'center';
+export const DEFAULT_RESUME_HEADER_ALIGNMENT: ResumeHeaderAlignment = 'left';
+
+export const normalizeResumeFontFamily = (value: unknown): ResumeFontFamily => {
+  if (value === 'anthropic-serif' || value === 'anthropic-sans' || value === 'source-han-serif') {
+    return value;
+  }
+  return DEFAULT_RESUME_FONT_FAMILY;
+};
+
+export const normalizeResumeHeaderAlignment = (value: unknown): ResumeHeaderAlignment =>
+  value === 'center' ? 'center' : DEFAULT_RESUME_HEADER_ALIGNMENT;
 
 export const normalizeResumeFontSize = (value: unknown): number => {
   const numeric = typeof value === 'number' ? value : Number(value);
@@ -450,6 +467,8 @@ export const createDefaultResumeState = (): ResumeState => ({
   photo: undefined,
   updatedAt: new Date().toISOString(),
   fontSizePt: DEFAULT_RESUME_FONT_SIZE_PT,
+  fontFamily: DEFAULT_RESUME_FONT_FAMILY,
+  headerAlignment: DEFAULT_RESUME_HEADER_ALIGNMENT,
   ...createDefaultVisibility(),
 });
 

@@ -113,6 +113,63 @@ p {
 .toolbar-menu-popover button:hover { background: #f0f3f1; }
 .toolbar-menu-popover button:disabled { cursor: not-allowed; opacity: 0.55; background: transparent; }
 
+.header-alignment-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid #c8d6e4;
+  border-radius: 8px;
+  background: #f6f9fb;
+  padding: 3px 4px 3px 8px;
+  color: #27435d;
+  font-size: 12px;
+}
+
+.header-alignment-control > span {
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.header-alignment-control button {
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 7px;
+  background: transparent;
+  color: #66798b;
+  font: inherit;
+  cursor: pointer;
+}
+
+.header-alignment-control button.active {
+  background: #fff;
+  color: #173b5d;
+  box-shadow: 0 1px 4px rgba(31, 74, 112, .16);
+}
+
+.font-family-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #c8d6e4;
+  border-radius: 8px;
+  background: #f6f9fb;
+  padding: 5px 8px;
+  color: #27435d;
+  font-size: 12px;
+}
+
+.font-family-control span { white-space: nowrap; }
+
+.font-family-control select {
+  max-width: 152px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .font-size-control {
   min-width: 176px;
   display: grid;

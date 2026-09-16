@@ -2,9 +2,28 @@
   min-width: 0;
 }
 
-.a4-stage { background: #f5f6f5; min-height: calc(100vh - 108px); display: flex; align-items: flex-start; justify-content: center; padding: 24px 18px 48px; overflow: auto; }
+/*
+ * The stage centres the sheet when there is room for it, and scrolls when
+ * there is not.
+ *
+ * `justify-content: center` would put the left edge of an overflowing sheet out
+ * of reach (the classic flexbox centring-overflow trap), so the centring is done
+ * with `margin: 0 auto` on the sheet instead: auto margins absorb the free space
+ * when there is some, and collapse to 0 — leaving the sheet scrollable from its
+ * left edge — when there is not.
+ */
+.a4-stage { background: #f5f6f5; min-height: calc(100vh - 108px); display: flex; align-items: flex-start; padding: 24px 18px 48px; overflow: auto; }
 
+/*
+ * `flex: none` is what keeps the preview honest: as a flex item the sheet would
+ * otherwise shrink to fit a narrow panel, and every line of text would wrap
+ * somewhere the printed page does not. The sheet stays 210mm wide in layout
+ * terms at every panel width; `.preview-viewport`'s zoom is what makes it fit
+ * the screen.
+ */
 .a4-page {
+  flex: none;
+  margin: 0 auto;
   width: 210mm;
   height: 297mm;
   background: #fff;
@@ -17,53 +36,54 @@
 .a4-content {
   width: 100%;
   min-height: 100%;
-  padding: 14mm;
-  transform-origin: top left;
+  padding: 12mm 14mm;
   color: #000;
-  font-size: var(--resume-font-size, 11pt);
-  line-height: 1.42;
-  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', 'SimSun', serif;
+  font-size: var(--resume-font-size, 9.5pt);
+  line-height: 1.4;
+  font-family: var(--resume-font-family, 'Source Han Serif SC', 'Source Han Serif CN', 'Songti SC', 'Noto Serif SC', STSong, SimSun, serif);
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Header - Centered (imprecv style) */
+/* Header: identity at left, fixed-ratio portrait at right. */
 .resume-header {
-  text-align: center;
-  padding-bottom: 6px;
+  text-align: left;
+  padding-bottom: 0;
   margin-bottom: 0;
 }
 
 .resume-header h1 {
-  font-size: calc(24px * var(--resume-font-scale, 1));
-  font-weight: 700;
+  font-size: 2.21em;
+  font-weight: 600;
   color: #000;
-  margin: 0 0 6px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  line-height: 1.15;
+  margin: 0;
+  letter-spacing: 0.08em;
+  line-height: 1.12;
+  white-space: nowrap;
 }
 
 .resume-titles {
-  font-size: calc(13px * var(--resume-font-scale, 1));
+  font-size: 1.05em;
   font-weight: 400;
   font-style: italic;
   color: #333;
-  margin-bottom: 5px;
+  margin-top: 1.5mm;
 }
 
 .resume-location {
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 0.95em;
   color: #333;
-  margin-bottom: 5px;
+  margin-top: 1.5mm;
 }
 
 .resume-contact {
-  font-size: calc(11px * var(--resume-font-scale, 1));
-  color: #000;
-  margin-bottom: 5px;
+  font-size: 0.95em;
+  color: #222;
+  margin-top: 1.5mm;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 3px 0;
+  justify-content: flex-start;
+  gap: 1mm 0;
 }
 
 .resume-contact .contact-item {
@@ -72,16 +92,16 @@
 }
 
 .resume-contact .separator {
-  margin: 0 6px;
-  color: #666;
-  font-size: calc(8px * var(--resume-font-scale, 1));
+  margin: 0 1.6mm;
+  color: #777;
+  font-size: 0.68em;
 }
 
 .resume-summary {
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 1em;
   color: #333;
-  line-height: 1.5;
-  margin-top: 6px;
+  line-height: 1.42;
+  margin-top: 1.5mm;
   text-align: left;
 }
 
@@ -89,18 +109,45 @@
 .resume-header-with-photo {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 20px;
+  gap: 7mm;
   align-items: start;
   text-align: left;
 }
 
-.resume-header-with-photo .header-content {
+.header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.resume-header-alignment-left .header-content {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.resume-header-alignment-left .resume-contact {
+  justify-content: flex-start;
+}
+
+.resume-header-alignment-center .header-content {
+  align-items: center;
   text-align: center;
 }
 
+.resume-header-alignment-center .resume-contact {
+  justify-content: center;
+}
+
+.resume-header .resume-summary {
+  align-self: stretch;
+  text-align: left;
+}
+
 .avatar-box {
-  width: 22mm;
-  height: 22mm;
+  width: 20mm;
+  height: 25mm;
   border-radius: 0;
   overflow: hidden;
   background: #fff;
@@ -112,25 +159,24 @@
   object-fit: cover;
 }
 
-/* Section - imprecv style */
+/* Sections */
 .resume-section {
-  margin-top: 10px;
+  margin-top: 3mm;
 }
 
 .resume-section h2 {
-  margin: 0 0 6px;
-  font-size: calc(13px * var(--resume-font-scale, 1));
-  font-weight: 700;
+  margin: 0 0 1.5mm;
+  font-size: 1.26em;
+  font-weight: 600;
   color: #000;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  border-bottom: 1px solid #000;
-  padding-bottom: 2px;
+  letter-spacing: 0.18em;
+  border-bottom: 0.35mm solid #000;
+  padding-bottom: 0.7mm;
 }
 
 /* Entry layout (work, education, project, etc.) */
 .entry {
-  margin-bottom: 8px;
+  margin-bottom: 2.2mm;
   break-inside: avoid;
 }
 
@@ -142,47 +188,55 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 2px;
+  margin-bottom: 0.35mm;
 }
 
 .entry-org {
-  font-weight: 700;
-  font-size: calc(12px * var(--resume-font-scale, 1));
+  font-weight: 600;
+  font-size: 1.1em;
 }
 
 .entry-location {
-  font-weight: 700;
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-weight: 600;
+  font-size: 0.95em;
 }
 
 .entry-line2 {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 3px;
+  margin-bottom: 0.55mm;
 }
 
 .entry-position {
   font-style: italic;
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 0.97em;
 }
 
 .entry-date {
-  font-size: calc(11px * var(--resume-font-scale, 1));
-  color: #333;
+  font-size: 0.95em;
+  color: #444;
+  white-space: nowrap;
+  padding-left: 3mm;
 }
 
 .entry-highlights {
   margin: 0;
-  padding-left: 16px;
+  padding-left: 4mm;
   list-style: disc;
 }
 
+.entry-highlights li::marker {
+  font-size: 0.72em;
+  color: #444;
+}
+
 .entry-highlights li {
-  font-size: calc(11px * var(--resume-font-scale, 1));
-  line-height: 1.38;
-  margin-bottom: 1px;
+  font-size: 1em;
+  line-height: 1.4;
+  margin-bottom: 0.8mm;
   color: #000;
+  padding-left: 1px;
 }
 
 .entry-highlights li:last-child {
@@ -192,11 +246,11 @@
 /* Education specific */
 .edu-degree {
   font-style: italic;
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 0.97em;
 }
 
 .edu-details {
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 0.97em;
   color: #333;
   margin-top: 1px;
 }
@@ -207,12 +261,12 @@
 
 /* Skills section */
 .skills-content {
-  font-size: calc(11px * var(--resume-font-scale, 1));
-  line-height: 1.5;
+  font-size: 1em;
+  line-height: 1.42;
 }
 
 .skill-category {
-  margin-bottom: 3px;
+  margin-bottom: 0.8mm;
 }
 
 .skill-category:last-child {
@@ -220,7 +274,7 @@
 }
 
 .skill-label {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Certificate, Award entries */
@@ -233,13 +287,13 @@
 
 .cert-name,
 .award-title {
-  font-weight: 700;
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-weight: 600;
+  font-size: 1em;
 }
 
 .cert-issuer,
 .award-issuer {
-  font-size: calc(11px * var(--resume-font-scale, 1));
+  font-size: 1em;
 }
 
 .cert-issuer em,
@@ -249,8 +303,8 @@
 
 /* Custom section (fallback) */
 .custom-content {
-  font-size: calc(11px * var(--resume-font-scale, 1));
-  line-height: 1.42;
+  font-size: 1em;
+  line-height: 1.4;
 }
 
 /* Print styles */
@@ -263,8 +317,7 @@
   /*
    * The preview zoom is a workspace-only control. It is applied to the A4
    * page through .preview-viewport, so reset it before the browser captures
-   * the print tree. The document's own fitScale remains shared by preview and
-   * PDF export.
+   * the print tree. The A4 document itself is never transformed or reflowed.
    */
   .preview-viewport .a4-page {
     zoom: 1 !important;
@@ -320,6 +373,6 @@
   }
 
   .a4-content {
-    padding: 14mm;
+    padding: 12mm 14mm;
   }
 }
