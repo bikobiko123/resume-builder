@@ -207,3 +207,14 @@ describe('renderResumeBody — custom and skills sections', () => {
     expect(html.match(/margin-bottom: 4px/gu)).toHaveLength(1);
   });
 });
+
+describe('renderResumeBody — 字段类型不对时也不抛错', () => {
+  it('数字电话不会被当成字符串调 .replace', () => {
+    const resume = fixture();
+    // 类型上不允许，但 localStorage / 云端存的是 JSON.parse 的结果。
+    (resume.personal as { phone: unknown }).phone = 17366901793;
+
+    expect(() => renderResumeBody(resume)).not.toThrow();
+    expect(renderResumeBody(resume)).toContain('17366901793');
+  });
+});

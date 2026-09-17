@@ -283,6 +283,22 @@ describe('云端同步依赖的存储行为', () => {
     expect(personSlice(saved, other.id).versions.every((version) => version.id !== 'conflict-1')).toBe(true);
     expect(after.versions.some((version) => version.id === 'conflict-1')).toBe(true);
   });
+
+  it('把数字型个人信息字段读成字符串，避免预览白屏', () => {
+    // 数字电话会一路走到 escapeHtml 的 .replace 上抛错，让整个应用卸载成空白页。
+    const store = createStore();
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(store));
+    const raw = JSON.parse(localStorage.getItem(VERSION_STORAGE_KEY)!) as Record<string, any>;
+    raw.versions[0].resume.personal.phone = 17366901793;
+    raw.versions[0].resume.personal.titles = [2026];
+    raw.versions[0].resume.personal.location = { city: 13, region: 210 };
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+
+    const personal = getActiveResume(loadVersionStore()).personal;
+    expect(personal.phone).toBe('17366901793');
+    expect(personal.titles).toEqual(['2026']);
+    expect(personal.location).toEqual({ city: '13', region: '210' });
+  });
 });
 
 const getActiveResumePersonId = (store: ResumeVersionStore): string =>

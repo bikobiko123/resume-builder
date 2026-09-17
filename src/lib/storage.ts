@@ -78,12 +78,53 @@ const cloneResume = (resume: ResumeState): ResumeState => {
   return JSON.parse(JSON.stringify(resume)) as ResumeState;
 };
 
+/**
+ * 只把「存在但不是字符串」的值转成字符串，缺失的字段保持缺失。
+ *
+ * 本地存储和云端存的是 `JSON.parse` 回来的东西，不受 `ResumeState` 的类型约束：
+ * 一个数字（例如手输的电话 17366901793）会一路传到 `escapeHtml`，在那里 `.replace`
+ * 抛错，React 又没有 error boundary，结果是整个应用卸载、页面全白。
+ *
+ * 不能顺手把 undefined 填成 ''：云端与本地是拿 `JSON.stringify` 比对内容是否一致的
+ * （见 `storeContentSignature`），凭空多出来的空字段会让两边看起来不一致，触发假的
+ * 「云端覆盖前的本地副本」快照。
+ */
+const asText = <T,>(value: T): T | string =>
+  typeof value === 'string' || value === undefined || value === null ? value : String(value);
+
+const normalizePersonal = (input: ResumeState['personal']): ResumeState['personal'] => {
+  const personal = { ...createDefaultResumeState().personal, ...input };
+  return {
+    ...personal,
+    name: asText(personal.name),
+    email: asText(personal.email),
+    phone: asText(personal.phone),
+    url: asText(personal.url),
+    summary: asText(personal.summary),
+    titles: Array.isArray(personal.titles) ? personal.titles.map(asText) : personal.titles,
+    profiles: Array.isArray(personal.profiles)
+      ? personal.profiles.map((profile) => ({
+        ...profile,
+        network: asText(profile.network),
+        username: asText(profile.username),
+        url: asText(profile.url),
+      }))
+      : personal.profiles,
+    location: personal.location && {
+      ...personal.location,
+      city: asText(personal.location.city),
+      region: asText(personal.location.region),
+      country: asText(personal.location.country),
+    },
+  };
+};
+
 const normalizeResume = (input: ResumeState): ResumeState => {
   const defaults = createDefaultResumeState();
   return {
     ...defaults,
     ...input,
-    personal: { ...defaults.personal, ...input.personal },
+    personal: normalizePersonal(input.personal),
     sections: input.sections || defaults.sections,
     fontSizePt: normalizeResumeFontSize(input.fontSizePt),
     fontFamily: normalizeResumeFontFamily(input.fontFamily),

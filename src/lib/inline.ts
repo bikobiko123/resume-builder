@@ -38,8 +38,13 @@ export const splitInlineSegments = (value: string): InlineSegment[] => {
 
 export const hasInlineMarkup = (value: string): boolean => /\*\*(.+?)\*\*/u.test(value);
 
+/**
+ * 转义后返回。参数在类型上是 `string`，但标记是从 `localStorage` / 云端 / 文件读回来的，
+ * 运行时可能是数字等其它类型——直接 `.replace` 会抛 `value.replace is not a function`。
+ * 这里显式转字符串，让排版层不会因为一个字段类型不对就白屏。
+ */
 export const escapeHtml = (value: string): string =>
-  value
+  String(value)
     .replace(/&/gu, '&amp;')
     .replace(/</gu, '&lt;')
     .replace(/>/gu, '&gt;')
