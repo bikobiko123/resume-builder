@@ -21,6 +21,7 @@ import type {
   ResumeState,
   ResumeSection,
 } from '../types/resume';
+import { resolveResumeTypeScale } from '../types/resume';
 import { sanitizeSkillGroups } from './skills';
 import { resumeWordFont } from './fonts';
 
@@ -43,6 +44,9 @@ const PAGE_SIZE = {
 };
 
 const scaledPt = (px: number, fontSizePt: number): number => Math.round(px * (fontSizePt / 11) * PT);
+
+/** An already-resolved pt value as docx half-points. */
+const halfPt = (pt: number): number => Math.round(pt * PT);
 
 const formatDateRange = (start: string, end: string): string => {
   const startStr = start || '';
@@ -139,13 +143,18 @@ const bulletParagraph = (highlight: string, fontSizeHalfPt: number): Paragraph =
 
 // --- Section renderers ------------------------------------------------------
 
-const workSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+/**
+ * `entryHp` is the entry *title* size (organization / institution / project
+ * name — the `.entry-org` line in the preview). Everything else in an entry
+ * follows the body size, which is what the stylesheet does.
+ */
+const workSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of section.workEntries ?? []) {
     paragraphs.push(
       entryHeadingParagraph(
         entry.location ? `${entry.organization}   ${entry.location}` : entry.organization,
-        { fontSizeHalfPt: hp, rightText: '' },
+        { fontSizeHalfPt: entryHp, rightText: '' },
       ),
     );
     for (const pos of entry.positions) {
@@ -163,14 +172,14 @@ const workSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] 
   return paragraphs;
 };
 
-const educationSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.educationEntries ?? []) as EducationEntry[]) {
     const degree = entry.area ? `${entry.studyType} - ${entry.area}` : entry.studyType;
     paragraphs.push(
       entryHeadingParagraph(
         entry.location ? `${entry.institution}   ${entry.location}` : entry.institution,
-        { fontSizeHalfPt: hp, rightText: '' },
+        { fontSizeHalfPt: entryHp, rightText: '' },
       ),
       entryHeadingParagraph(degree, {
         fontSizeHalfPt: hp,
@@ -208,10 +217,10 @@ const educationSectionParagraphs = (section: ResumeSection, hp: number): Paragra
   return paragraphs;
 };
 
-const projectSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const projectSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.projectEntries ?? []) as ProjectEntry[]) {
-    paragraphs.push(entryHeadingParagraph(entry.name, { fontSizeHalfPt: hp, rightText: '' }));
+    paragraphs.push(entryHeadingParagraph(entry.name, { fontSizeHalfPt: entryHp, rightText: '' }));
     paragraphs.push(
       entryHeadingParagraph(entry.affiliation || '', {
         fontSizeHalfPt: hp,
@@ -327,14 +336,14 @@ const customSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[
     .filter(Boolean)
     .map((text) => lineParagraph(text, hp, { spacing: { after: 60 } }));
 
-const sectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const sectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
   switch (section.type) {
     case 'work':
-      return workSectionParagraphs(section, hp);
+      return workSectionParagraphs(section, hp, entryHp);
     case 'education':
-      return educationSectionParagraphs(section, hp);
+      return educationSectionParagraphs(section, hp, entryHp);
     case 'project':
-      return projectSectionParagraphs(section, hp);
+      return projectSectionParagraphs(section, hp, entryHp);
     case 'awards':
       return awardSectionParagraphs(section, hp);
     case 'certs':
@@ -405,7 +414,7 @@ interface HeaderLines {
   photo?: { run: ImageRun; width: number };
 }
 
-const buildHeader = (resume: ResumeState): HeaderLines => {
+const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
   const { personal } = resume;
   const headerAlignment = resume.headerAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
   const contactItems: string[] = [];
@@ -427,7 +436,7 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
       new Paragraph({
         alignment: headerAlignment,
         spacing: { after: 80 },
-        children: [new TextRun({ text: personal.name, bold: true, size: scaledPt(24, resume.fontSizePt) })],
+        children: [new TextRun({ text: personal.name, bold: true, size: nameHalfPt })],
       }),
     );
   }
@@ -475,8 +484,11 @@ const buildHeader = (resume: ResumeState): HeaderLines => {
 };
 
 export const buildResumeDocx = async (resume: ResumeState): Promise<Document> => {
-  const hp = scaledPt(11, resume.fontSizePt);
-  const { nameLines } = buildHeader(resume);
+  const scale = resolveResumeTypeScale(resume);
+  const hp = halfPt(scale.bodyPt);
+  const entryHp = halfPt(scale.entryPt);
+  const sectionHp = halfPt(scale.sectionPt);
+  const { nameLines } = buildHeader(resume, halfPt(scale.namePt));
 
   // Header paragraph list: with a visible photo, preview switches to a
   // two-column grid (text left, photo right); approximate with a borderless
@@ -520,8 +532,8 @@ export const buildResumeDocx = async (resume: ResumeState): Promise<Document> =>
   for (const section of resume.sections) {
     if (!section.visible) continue;
     if (!hasSectionContent(section)) continue;
-    sectionParagraphList.push(sectionHeadingParagraph(section.title, hp));
-    sectionParagraphList.push(...sectionParagraphs(section, hp));
+    sectionParagraphList.push(sectionHeadingParagraph(section.title, sectionHp));
+    sectionParagraphList.push(...sectionParagraphs(section, hp, entryHp));
   }
 
   const section: ISectionOptions = {

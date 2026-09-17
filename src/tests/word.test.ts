@@ -145,3 +145,58 @@ describe('Word export', () => {
     expect(filename).toBe(`李四_${new Date().toISOString().split('T')[0]}`);
   });
 });
+
+describe('Word 导出 —— 分层字号', () => {
+  /** 取某段文字所在 run 的 `w:sz`（half-point），取不到返回 null。 */
+  const sizeOfRunContaining = (docXml: string, text: string): number | null => {
+    const run = docXml.match(new RegExp(`<w:r>(?:(?!</w:r>)[\\s\\S])*?${text}(?:(?!</w:r>)[\\s\\S])*?</w:r>`, 'u'))?.[0];
+    const size = run?.match(/<w:sz w:val="(\d+)"\/>/u)?.[1];
+    return size ? Number(size) : null;
+  };
+
+  it('条目字号只作用于公司 / 学校 / 项目名那一行', async () => {
+    const resume = createDefaultResumeState();
+    resume.personal.name = '张三';
+    const work = createResumeSection('work');
+    work.id = 'sec-work';
+    work.title = '工作经历';
+    work.workEntries = [{
+      id: 'w1',
+      organization: '有点公司',
+      location: '上海',
+      positions: [{
+        id: 'p1',
+        position: '增长负责人',
+        startDate: '2022-03',
+        endDate: 'present',
+        highlights: ['做了一些事'],
+      }],
+    }];
+    resume.sections = [work];
+    resume.entryPt = 14;
+    resume.fontSizePt = 9.5;
+
+    const docXml = await extractDocumentXml(resume);
+
+    // 14pt = 280 half-points；正文 9.5pt = 190。
+    expect(sizeOfRunContaining(docXml, '有点公司')).toBe(280);
+    expect(sizeOfRunContaining(docXml, '增长负责人')).toBe(190);
+    // 章节标题没单独设过，走 1.26× → 12pt = 240 half-points。以前 docx 把它排成
+    // 正文大小，和预览不一致；现在两边一致了。
+    expect(sizeOfRunContaining(docXml, '工作经历')).toBe(240);
+  });
+
+  it('姓名和章节标题各自独立于正文', async () => {
+    const resume = createDefaultResumeState();
+    resume.personal.name = '张三';
+    resume.fontSizePt = 9.5;
+    resume.namePt = 20;
+    resume.sectionPt = 13;
+
+    const docXml = await extractDocumentXml(resume);
+
+    // 20pt = 400，13pt = 260，正文 190
+    expect(sizeOfRunContaining(docXml, '张三')).toBe(400);
+    expect(sizeOfRunContaining(docXml, '教育背景')).toBe(260);
+  });
+});

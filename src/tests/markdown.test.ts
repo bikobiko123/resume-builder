@@ -52,3 +52,26 @@ describe('importFromMarkdown', () => {
     expect(section?.workEntries?.[0].organization).toBe('示例公司');
   });
 });
+
+describe('importFromMarkdown —— 分层字号', () => {
+  const withLevels = `---
+type: resume
+name: 测试用户
+fontSizePt: 10
+namePt: 19
+sectionPt: nope
+entryPt: 10.5
+---`;
+
+  it('往返保留设过的层级，坏值折回「跟随正文」', () => {
+    const result = importFromMarkdown(`${withLevels}
+
+# 测试用户
+`);
+
+    expect(result?.fontSizePt).toBe(10);
+    expect(result?.namePt).toBe(19);
+    expect(result?.sectionPt).toBeUndefined();
+    expect(result?.entryPt).toBe(10.5);
+  });
+});

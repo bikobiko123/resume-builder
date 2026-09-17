@@ -150,7 +150,19 @@ export interface ResumeState {
   sections: ResumeSection[];
   photo?: PhotoData;
   updatedAt: string;
+  /** 正文字号，也是另外三档「跟随正文」时的基准。 */
   fontSizePt: number;
+  /**
+   * 姓名、章节标题、条目标题的字号（绝对 pt）。
+   *
+   * 缺省（`undefined`）表示**跟随正文**，按 `a4.css` 里原有的 em 比例缩放；
+   * 一旦显式设置就固定成这个 pt，正文再变它也不动。存量简历三个字段都是缺省的，
+   * 所以它们的排版和以前逐像素一致 —— 这也是这三个字段必须可选、不能填默认值的
+   * 原因。
+   */
+  namePt?: number;
+  sectionPt?: number;
+  entryPt?: number;
   fontFamily: ResumeFontFamily;
   headerAlignment: ResumeHeaderAlignment;
   // User preferences - visibility toggles for personal info sections
@@ -189,6 +201,76 @@ export const normalizeResumeFontSize = (value: unknown): number => {
   if (!Number.isFinite(numeric)) return DEFAULT_RESUME_FONT_SIZE_PT;
   const clamped = Math.min(MAX_RESUME_FONT_SIZE_PT, Math.max(MIN_RESUME_FONT_SIZE_PT, numeric));
   return Number(clamped.toFixed(1));
+};
+
+/**
+ * 三档可选层级的字号边界。比正文宽：姓名字号本来就可能是正文的两倍多。
+ */
+export const MIN_LEVEL_FONT_SIZE_PT = 6;
+export const MAX_LEVEL_FONT_SIZE_PT = 36;
+
+export type ResumeLevelKey = 'name' | 'section' | 'entry';
+
+/**
+ * 每个层级「跟随正文」时的 em 倍率。
+ *
+ * **必须和 `src/styles/a4.css` 里对应选择器的 `var()` 兜底值一致** —— CSS 读不到
+ * 这个常量，只能靠 `a4Css.test.ts` 把两边钉在一起。这里的值同时用于 UI 上显示的
+ * 换算结果和 docx 导出。
+ */
+export const RESUME_LEVEL_RATIOS: Record<ResumeLevelKey, number> = {
+  name: 2.21,
+  section: 1.26,
+  entry: 1.1,
+};
+
+/**
+ * 归一化一个可选的层级字号。
+ *
+ * 返回 `undefined` 表示「跟随正文」：字段缺失、`null`、或者根本不是数字时都归到
+ * 这一档。范围外的数字按边界收敛而不是丢弃 —— 用户明确设过值，就别悄悄丢掉。
+ */
+export const normalizeLevelFontSize = (value: unknown): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return undefined;
+  const clamped = Math.min(MAX_LEVEL_FONT_SIZE_PT, Math.max(MIN_LEVEL_FONT_SIZE_PT, numeric));
+  return Number(clamped.toFixed(1));
+};
+
+/** 四档字号换算后的实际 pt。`resolved` 标出哪些是跟随正文算出来的。 */
+export interface ResumeTypeScale {
+  bodyPt: number;
+  namePt: number;
+  sectionPt: number;
+  entryPt: number;
+  /** 哪些层级当前是「跟随正文」。 */
+  following: Record<ResumeLevelKey, boolean>;
+}
+
+/** 把 `ResumeState` 解析成四档实际字号，缺省的层级用 em 倍率从正文换算。 */
+export const resolveResumeTypeScale = (resume: ResumeState): ResumeTypeScale => {
+  const manual: Record<ResumeLevelKey, number | undefined> = {
+    name: resume.namePt,
+    section: resume.sectionPt,
+    entry: resume.entryPt,
+  };
+  const effective = (key: ResumeLevelKey): number => {
+    const explicit = manual[key];
+    if (explicit !== undefined) return explicit;
+    return Number((resume.fontSizePt * RESUME_LEVEL_RATIOS[key]).toFixed(1));
+  };
+  return {
+    bodyPt: resume.fontSizePt,
+    namePt: effective('name'),
+    sectionPt: effective('section'),
+    entryPt: effective('entry'),
+    following: {
+      name: manual.name === undefined,
+      section: manual.section === undefined,
+      entry: manual.entry === undefined,
+    },
+  };
 };
 
 // Utility functions

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { ResumeState } from '../types/resume';
 import { renderResumeBody } from '../lib/html';
-import { resumeFontStack } from '../lib/fonts';
+import { resumeCssVariables } from '../lib/typeScale';
 
 interface PreviewA4Props {
   resume: ResumeState;
@@ -87,10 +87,9 @@ const PreviewA4 = ({ resume, measureVersion, onMeasure, onStageWidth }: PreviewA
     return () => observer.disconnect();
   }, [onStageWidth]);
 
-  const contentStyle = {
-    '--resume-font-size': `${resume.fontSizePt}pt`,
-    '--resume-font-family': resumeFontStack(resume.fontFamily),
-  } as CSSProperties;
+  // Shared with `renderResumeDocument` so the on-screen sheet and the measured
+  // document can never be given different type scales.
+  const contentStyle = resumeCssVariables(resume) as CSSProperties;
 
   return (
     <section className="preview-document" id="print-root">

@@ -1,6 +1,7 @@
 import {
   createBlankResumeState,
   createDefaultResumeState,
+  normalizeLevelFontSize,
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
@@ -127,6 +128,11 @@ const normalizeResume = (input: ResumeState): ResumeState => {
     personal: normalizePersonal(input.personal),
     sections: input.sections || defaults.sections,
     fontSizePt: normalizeResumeFontSize(input.fontSizePt),
+    // 显式写成 undefined（而不是省略）以覆盖上面 `...input` 带进来的坏值：
+    // `JSON.stringify` 会丢掉 undefined 的键，所以存回去仍然是「跟随正文」。
+    namePt: normalizeLevelFontSize(input.namePt),
+    sectionPt: normalizeLevelFontSize(input.sectionPt),
+    entryPt: normalizeLevelFontSize(input.entryPt),
     fontFamily: normalizeResumeFontFamily(input.fontFamily),
     headerAlignment: normalizeResumeHeaderAlignment(input.headerAlignment),
     showPhoto: input.showPhoto ?? false,

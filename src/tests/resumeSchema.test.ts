@@ -186,3 +186,31 @@ describe('validateResume', () => {
     expect(missing?.level).toBe('error');
   });
 });
+
+describe('normalizeResume —— 分层字号', () => {
+  const bare = { personal: { name: '张三' }, sections: [] };
+
+  it('没写就是不设，不算警告', () => {
+    const { resume, warnings } = normalizeResume(bare);
+    expect(resume.namePt).toBeUndefined();
+    expect(resume.sectionPt).toBeUndefined();
+    expect(resume.entryPt).toBeUndefined();
+    expect(warnings.some((line) => line.startsWith('/namePt'))).toBe(false);
+  });
+
+  it('非数字改为跟随正文，越界收敛并报警', () => {
+    const { resume, warnings } = normalizeResume({
+      ...bare,
+      namePt: '大一点',
+      sectionPt: 999,
+      entryPt: 12,
+    });
+
+    expect(resume.namePt).toBeUndefined();
+    expect(warnings.some((line) => line.startsWith('/namePt'))).toBe(true);
+    expect(resume.sectionPt).toBe(36);
+    expect(warnings.some((line) => line.startsWith('/sectionPt'))).toBe(true);
+    expect(resume.entryPt).toBe(12);
+    expect(warnings.some((line) => line.startsWith('/entryPt'))).toBe(false);
+  });
+});

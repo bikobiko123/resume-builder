@@ -52,8 +52,18 @@
   margin-bottom: 0;
 }
 
+/*
+ * Per-level sizes. The `var()` fallbacks are the original em ratios and must
+ * stay in step with `RESUME_LEVEL_RATIOS` in `src/types/resume.ts` (pinned by
+ * `src/tests/a4Css.test.ts`). When a level is unset the variable is not emitted
+ * at all, so the fallback is what every pre-existing resume renders with.
+ *
+ * These resolve against `.a4-content`'s font size: the parent chain from each
+ * selector down to `.a4-content` sets no font-size of its own, so an `em`
+ * fallback is exactly "multiplied by the body size".
+ */
 .resume-header h1 {
-  font-size: 2.21em;
+  font-size: var(--resume-name-size, 2.21em);
   font-weight: 600;
   color: #000;
   margin: 0;
@@ -166,7 +176,7 @@
 
 .resume-section h2 {
   margin: 0 0 1.5mm;
-  font-size: 1.26em;
+  font-size: var(--resume-section-size, 1.26em);
   font-weight: 600;
   color: #000;
   letter-spacing: 0.18em;
@@ -193,7 +203,7 @@
 
 .entry-org {
   font-weight: 600;
-  font-size: 1.1em;
+  font-size: var(--resume-entry-size, 1.1em);
 }
 
 .entry-location {

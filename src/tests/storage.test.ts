@@ -20,7 +20,7 @@ import {
   type ResumeVersionStore,
   type ResumeVersionStoreV1,
 } from '../lib/storage';
-import { createDefaultResumeState } from '../types/resume';
+import { createDefaultResumeState, MAX_LEVEL_FONT_SIZE_PT } from '../types/resume';
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -298,6 +298,32 @@ describe('云端同步依赖的存储行为', () => {
     expect(personal.phone).toBe('17366901793');
     expect(personal.titles).toEqual(['2026']);
     expect(personal.location).toEqual({ city: '13', region: '210' });
+  });
+
+  it('分层字号存得下、坏值丢得起，缺省不会变成具体值', () => {
+    const store = createStore();
+    const raw = JSON.parse(JSON.stringify(store)) as Record<string, any>;
+    raw.versions[0].resume.namePt = 19.5;
+    raw.versions[0].resume.sectionPt = '不是数字'; // 归一化成「跟随正文」
+    raw.versions[0].resume.entryPt = 999; // 收敛到边界
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+
+    const saved = getActiveResume(loadVersionStore());
+    expect(saved.namePt).toBe(19.5);
+    expect(saved.sectionPt).toBeUndefined();
+    expect(saved.entryPt).toBe(MAX_LEVEL_FONT_SIZE_PT);
+  });
+
+  it('没设过层级的简历存回去不会多出字段', () => {
+    // 多写一个显式的 pt 就等于把存量简历冻结在今天的比例上，正文再变它就不动了。
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(createStore()));
+    saveActiveResume({ ...getActiveResume(loadVersionStore()), personal: { name: '杨泰沣' } });
+
+    const persisted = JSON.parse(localStorage.getItem(VERSION_STORAGE_KEY)!) as Record<string, any>;
+    const resume = persisted.versions[0].resume;
+    expect('namePt' in resume).toBe(false);
+    expect('sectionPt' in resume).toBe(false);
+    expect('entryPt' in resume).toBe(false);
   });
 });
 

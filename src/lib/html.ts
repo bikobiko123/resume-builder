@@ -7,10 +7,10 @@ import {
   type ResumeState,
   type WorkEntry,
 } from '../types/resume';
-import { resumeFontStack } from './fonts';
 import { formatDateRange } from './format';
 import { escapeHtml, renderInlineHtml } from './inline';
 import { sanitizeSkillGroups } from './skills';
+import { resumeCssVariableStyle } from './typeScale';
 
 /**
  * The one place that turns a `ResumeState` into the A4 markup.
@@ -319,10 +319,7 @@ export interface ResumeDocumentOptions {
  * what the PDF export will print.
  */
 export const renderResumeDocument = (resume: ResumeState, options: ResumeDocumentOptions): string => {
-  const style = [
-    `--resume-font-size: ${resume.fontSizePt}pt`,
-    `--resume-font-family: ${resumeFontStack(resume.fontFamily)}`,
-  ];
+  const style = resumeCssVariableStyle(resume);
 
   const title = options.title ?? (resume.personal.name || '简历');
 
@@ -341,7 +338,7 @@ export const renderResumeDocument = (resume: ResumeState, options: ResumeDocumen
     '<section class="preview-document" id="print-root">',
     '  <div class="a4-stage">',
     '    <div class="a4-page">',
-    `      <div class="a4-content" style="${style.join('; ')}">`,
+    `      <div class="a4-content" style="${style}">`,
     renderResumeBody(resume),
     '      </div>',
     '    </div>',

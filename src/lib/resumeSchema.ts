@@ -1,6 +1,9 @@
 import {
+  MAX_LEVEL_FONT_SIZE_PT,
   MAX_RESUME_FONT_SIZE_PT,
+  MIN_LEVEL_FONT_SIZE_PT,
   MIN_RESUME_FONT_SIZE_PT,
+  normalizeLevelFontSize,
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
@@ -408,6 +411,27 @@ export const normalizeResume = (raw: unknown): NormalizeResult => {
     normalizer.warn('/headerAlignment', '不支持的页头对齐方式，已按左对齐处理');
   }
 
+  // 三档可选层级字号：缺省表示跟随正文。只校验用户真的写了的值。
+  const levelFontSize = (key: 'namePt' | 'sectionPt' | 'entryPt'): number | undefined => {
+    const value = raw[key];
+    if (value === undefined || value === null) return undefined;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      normalizer.warn(`/${key}`, '不是数字，已改为跟随正文');
+      return undefined;
+    }
+    if (numeric < MIN_LEVEL_FONT_SIZE_PT || numeric > MAX_LEVEL_FONT_SIZE_PT) {
+      normalizer.warn(
+        `/${key}`,
+        `超出 ${MIN_LEVEL_FONT_SIZE_PT}-${MAX_LEVEL_FONT_SIZE_PT}pt，已收敛为 ${numeric > MAX_LEVEL_FONT_SIZE_PT ? MAX_LEVEL_FONT_SIZE_PT : MIN_LEVEL_FONT_SIZE_PT}pt`,
+      );
+    }
+    return normalizeLevelFontSize(value);
+  };
+  const namePt = levelFontSize('namePt');
+  const sectionPt = levelFontSize('sectionPt');
+  const entryPt = levelFontSize('entryPt');
+
   const visibility = {
     showPhoto: normalizer.bool(raw.showPhoto, '/showPhoto', false),
     showName: normalizer.bool(raw.showName, '/showName', true),
@@ -426,6 +450,9 @@ export const normalizeResume = (raw: unknown): NormalizeResult => {
     photo: normalizePhoto(raw.photo, normalizer),
     updatedAt: normalizer.str(raw.updatedAt, '/updatedAt', new Date().toISOString()),
     fontSizePt: normalizedFontSize,
+    namePt,
+    sectionPt,
+    entryPt,
     fontFamily: normalizedFontFamily,
     headerAlignment: normalizedHeaderAlignment,
     ...visibility,

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { RESUME_LEVEL_RATIOS } from '../types/resume';
 
 /**
  * Guards on `a4.css` for the two ways the preview can silently stop matching the
@@ -67,5 +68,22 @@ describe('a4.css — the preview sheet keeps the print layout', () => {
     expect(ruleFor('.resume-header-alignment-center .header-content')).toMatch(/align-items:\s*center/u);
     expect(ruleFor('.resume-header-alignment-center .resume-contact')).toMatch(/justify-content:\s*center/u);
     expect(ruleFor('.resume-header .resume-summary')).toMatch(/text-align:\s*left/u);
+  });
+
+  it('每档层级的 em 兜底值等于 RESUME_LEVEL_RATIOS', () => {
+    // CSS 读不到 TS 常量，只能在这里把两边钉住：兜底值同时也是所有存量简历
+    // （三个字段都缺省）实际渲染的倍率，改了就等于改了所有人的排版。
+    const levelSelectors: Array<[keyof typeof RESUME_LEVEL_RATIOS, string, string]> = [
+      ['name', '.resume-header h1', '--resume-name-size'],
+      ['section', '.resume-section h2', '--resume-section-size'],
+      ['entry', '.entry-org', '--resume-entry-size'],
+    ];
+
+    for (const [level, selector, variable] of levelSelectors) {
+      const ratio = RESUME_LEVEL_RATIOS[level];
+      expect(ruleFor(selector)).toMatch(
+        new RegExp(`font-size:\\s*var\\(${variable},\\s*${ratio}em\\)`, 'u'),
+      );
+    }
   });
 });

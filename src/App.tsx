@@ -48,17 +48,27 @@ import { downloadText } from './lib/download';
 import {
   createDefaultResumeState,
   createResumeSection,
+  normalizeLevelFontSize,
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
+  resolveResumeTypeScale,
   type ResumeFontFamily,
   type ResumeHeaderAlignment,
+  type ResumeLevelKey,
   type ResumeState,
   type SectionType,
   type PhotoData,
 } from './types/resume';
 
 const TOMBSTONE_STORAGE_KEY = 'resume_builder_deleted_persons_v1';
+
+/** 层级 key → `ResumeState` 上的字段名。 */
+const LEVEL_FONT_SIZE_FIELDS: Record<ResumeLevelKey, 'namePt' | 'sectionPt' | 'entryPt'> = {
+  name: 'namePt',
+  section: 'sectionPt',
+  entry: 'entryPt',
+};
 
 /**
  * 本地已删除的人物。没有它，另一台设备下一次同步会把已删人物重新推回云端（复活）。
@@ -400,6 +410,8 @@ const App = () => {
     () => personsMeta.find((person) => person.isActive)?.name || '',
     [personsMeta]
   );
+  /** 四档字号的实际 pt —— 未单独设置的层级在这里换算成「跟随正文」的结果。 */
+  const typeScale = useMemo(() => resolveResumeTypeScale(resume), [resume]);
 
   const handleMeasure = (naturalHeight: number, frameHeight: number) => {
     const next = frameHeight > 0 ? naturalHeight / frameHeight : 0;
@@ -597,6 +609,13 @@ const App = () => {
     setMeasureVersion((prev) => prev + 1);
   };
 
+  /** `pt` 为 `undefined` 表示该层级改回「跟随正文」，由正文用 em 倍率换算。 */
+  const updateLevelFontSize = (level: ResumeLevelKey, pt: number | undefined) => {
+    const field = LEVEL_FONT_SIZE_FIELDS[level];
+    setResume((prev) => ({ ...prev, [field]: normalizeLevelFontSize(pt) }));
+    setMeasureVersion((prev) => prev + 1);
+  };
+
   const updateFontFamily = (fontFamily: ResumeFontFamily) => {
     setResume((prev) => ({ ...prev, fontFamily: normalizeResumeFontFamily(fontFamily) }));
     setMeasureVersion((prev) => prev + 1);
@@ -660,6 +679,8 @@ const App = () => {
         isOverflowing={isOverflowing}
         fontSizePt={resume.fontSizePt}
         onFontSizeChange={updateFontSize}
+        typeScale={typeScale}
+        onLevelFontSizeChange={updateLevelFontSize}
         fontFamily={resume.fontFamily}
         onFontFamilyChange={updateFontFamily}
         headerAlignment={resume.headerAlignment}

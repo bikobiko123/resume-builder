@@ -201,6 +201,96 @@ p {
   padding: 6px 10px;
 }
 
+/* 层级字号：与 .toolbar-menu 同一套 popover 语言，宽度由内容决定。 */
+.level-size-control { position: relative; }
+
+.level-size-control summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  border: 1px solid #c8d6e4;
+  border-radius: 8px;
+  background: #f6f9fb;
+  padding: 5px 10px;
+  color: #27435d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.level-size-control summary::-webkit-details-marker { display: none; }
+
+/* 有层级被单独设过时点一下，提示「这里和默认不一样」。 */
+.level-size-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1f4a70;
+}
+
+.level-size-popover {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: 36px;
+  display: grid;
+  gap: 8px;
+  min-width: 286px;
+  padding: 10px;
+  border: 1px solid #e4e8e5;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(35, 50, 42, .12);
+}
+
+.level-size-note {
+  margin: 0;
+  color: #6f7973;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.level-size-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 46px 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-size-label {
+  color: #27435d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.level-size-row input {
+  width: 100%;
+  accent-color: #1f4a70;
+}
+
+.level-size-value {
+  color: #4c5d52;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.level-size-reset {
+  border: 1px solid #c8d6e4;
+  border-radius: 5px;
+  background: #f6f9fb;
+  padding: 3px 0;
+  color: #27435d;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.level-size-reset:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
 .scale-status-warn {
   color: #8a4b12;
   background: #ffeed8;

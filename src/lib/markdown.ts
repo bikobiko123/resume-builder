@@ -12,6 +12,7 @@ import type {
 } from '../types/resume';
 import {
   createResumeSection,
+  normalizeLevelFontSize,
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
@@ -37,6 +38,9 @@ export const exportToMarkdown = (resume: ResumeState): string => {
     showPhone: resume.showPhone,
     showTitle: resume.showTitle,
     fontSizePt: resume.fontSizePt,
+    namePt: resume.namePt,
+    sectionPt: resume.sectionPt,
+    entryPt: resume.entryPt,
     fontFamily: resume.fontFamily,
     headerAlignment: resume.headerAlignment,
     updatedAt: resume.updatedAt,
@@ -305,6 +309,9 @@ export const importFromMarkdown = (content: string): Partial<ResumeState> | null
       },
       sections,
       fontSizePt: normalizeResumeFontSize(frontmatter.fontSizePt),
+      namePt: normalizeLevelFontSize(frontmatter.namePt),
+      sectionPt: normalizeLevelFontSize(frontmatter.sectionPt),
+      entryPt: normalizeLevelFontSize(frontmatter.entryPt),
       fontFamily: normalizeResumeFontFamily(frontmatter.fontFamily),
       headerAlignment: normalizeResumeHeaderAlignment(frontmatter.headerAlignment),
       showPhoto: (frontmatter.showPhoto as boolean) ?? false,
