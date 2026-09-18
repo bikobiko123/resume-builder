@@ -52,6 +52,8 @@ import {
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
+  normalizeResumeSpacing,
+  resolveResumeSpacing,
   resolveResumeTypeScale,
   type ResumeFontFamily,
   type ResumeHeaderAlignment,
@@ -412,6 +414,8 @@ const App = () => {
   );
   /** 四档字号的实际 pt —— 未单独设置的层级在这里换算成「跟随正文」的结果。 */
   const typeScale = useMemo(() => resolveResumeTypeScale(resume), [resume]);
+  /** 间距各项的实际值 —— 系数为 1（默认）时就是 a4.css 里写死的那些数。 */
+  const spacing = useMemo(() => resolveResumeSpacing(resume), [resume]);
 
   const handleMeasure = (naturalHeight: number, frameHeight: number) => {
     const next = frameHeight > 0 ? naturalHeight / frameHeight : 0;
@@ -616,6 +620,13 @@ const App = () => {
     setMeasureVersion((prev) => prev + 1);
   };
 
+  /** `value` 为 `undefined` 表示改回默认间距（`normalizeResumeSpacing` 会把 100% 也归到这里）。 */
+  const updateSpacing = (value: number | undefined) => {
+    const spacing = value === undefined ? undefined : normalizeResumeSpacing(value / 100);
+    setResume((prev) => ({ ...prev, spacing }));
+    setMeasureVersion((prev) => prev + 1);
+  };
+
   const updateFontFamily = (fontFamily: ResumeFontFamily) => {
     setResume((prev) => ({ ...prev, fontFamily: normalizeResumeFontFamily(fontFamily) }));
     setMeasureVersion((prev) => prev + 1);
@@ -681,6 +692,8 @@ const App = () => {
         onFontSizeChange={updateFontSize}
         typeScale={typeScale}
         onLevelFontSizeChange={updateLevelFontSize}
+        spacing={spacing}
+        onSpacingChange={updateSpacing}
         fontFamily={resume.fontFamily}
         onFontFamilyChange={updateFontFamily}
         headerAlignment={resume.headerAlignment}

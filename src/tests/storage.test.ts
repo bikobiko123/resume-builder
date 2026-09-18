@@ -20,7 +20,7 @@ import {
   type ResumeVersionStore,
   type ResumeVersionStoreV1,
 } from '../lib/storage';
-import { createDefaultResumeState, MAX_LEVEL_FONT_SIZE_PT } from '../types/resume';
+import { createDefaultResumeState, MAX_LEVEL_FONT_SIZE_PT, MIN_RESUME_SPACING } from '../types/resume';
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -324,6 +324,28 @@ describe('云端同步依赖的存储行为', () => {
     expect('namePt' in resume).toBe(false);
     expect('sectionPt' in resume).toBe(false);
     expect('entryPt' in resume).toBe(false);
+    expect('spacing' in resume).toBe(false);
+  });
+
+  it('紧凑度存得下、坏值丢得起，恰好 100% 等于没设过', () => {
+    const store = createStore();
+    const raw = JSON.parse(JSON.stringify(store)) as Record<string, any>;
+    raw.versions[0].resume.spacing = 0.85;
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+    expect(getActiveResume(loadVersionStore()).spacing).toBe(0.85);
+
+    raw.versions[0].resume.spacing = '紧一点'; // 归一化成「默认间距」
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+    expect(getActiveResume(loadVersionStore()).spacing).toBeUndefined();
+
+    raw.versions[0].resume.spacing = 0.2; // 收敛到下限
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+    expect(getActiveResume(loadVersionStore()).spacing).toBe(MIN_RESUME_SPACING);
+
+    // 「拖回 100%」必须回到缺省，而不是留下一个显式的 1.0
+    raw.versions[0].resume.spacing = 1;
+    localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(raw));
+    expect(getActiveResume(loadVersionStore()).spacing).toBeUndefined();
   });
 });
 

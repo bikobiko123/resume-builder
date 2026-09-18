@@ -21,7 +21,7 @@ import type {
   ResumeState,
   ResumeSection,
 } from '../types/resume';
-import { resolveResumeTypeScale } from '../types/resume';
+import { BASE_SPACING, resolveResumeSpacing, resolveResumeTypeScale } from '../types/resume';
 import { sanitizeSkillGroups } from './skills';
 import { resumeWordFont } from './fonts';
 
@@ -82,6 +82,27 @@ const renderInlineRuns = (text: string, fontSizeHalfPt: number, options: { itali
   return runs;
 };
 
+/**
+ * Paragraph and page spacing for one document, already scaled by the resume's
+ * density setting.
+ *
+ * The preview gets this from `a4.css` custom properties; docx has no stylesheet,
+ * so the same numbers have to be recomputed here from `resolveResumeSpacing`.
+ * If the two ever drift, the Word file silently stops matching the page the user
+ * tuned — which is the whole reason the density control exists.
+ */
+interface DocxSpacing {
+  /** Multiplier applied to the paragraph gaps that were previously hard-coded. */
+  scale: number;
+  /** `w:line` — 240ths of a line. */
+  line: number;
+  /** Page margin in twips, top and bottom only; the preview's left/right never change. */
+  pageMarginY: number;
+}
+
+/** One of the previously hard-coded twip gaps, scaled. */
+const gap = (base: number, sp: DocxSpacing): number => Math.round(base * sp.scale);
+
 interface EntryHeadingOptions {
   fontSizeHalfPt: number;
   /** Right-aligned text, rendered at a tab stop on the right margin (mirrors flex space-between). */
@@ -90,7 +111,7 @@ interface EntryHeadingOptions {
 }
 
 /** Entry first line: bold left label + optional right-aligned text on the same line. */
-const entryHeadingParagraph = (label: string, options: EntryHeadingOptions): Paragraph => {
+const entryHeadingParagraph = (label: string, options: EntryHeadingOptions, sp: DocxSpacing): Paragraph => {
   const { fontSizeHalfPt, rightText, rightBold = false } = options;
   const children: ParagraphChild[] = [
     new TextRun({ text: label, bold: true, size: fontSizeHalfPt }),
@@ -103,7 +124,7 @@ const entryHeadingParagraph = (label: string, options: EntryHeadingOptions): Par
 
   return new Paragraph({
     children,
-    spacing: { after: 40 },
+    spacing: { after: gap(40, sp) },
     tabStops: rightText
       ? [{ type: TabStopType.RIGHT, position: convertMillimetersToTwip(182) }]
       : undefined,
@@ -115,29 +136,34 @@ interface LineParagraphOptions extends IParagraphOptions {
 }
 
 /** Simple single-line paragraph with the given font size. */
-const lineParagraph = (text: string, fontSizeHalfPt: number, options: LineParagraphOptions = {}): Paragraph => {
+const lineParagraph = (
+  text: string,
+  fontSizeHalfPt: number,
+  sp: DocxSpacing,
+  options: LineParagraphOptions = {},
+): Paragraph => {
   const { runOptions, ...paragraphOptions } = options;
   return new Paragraph({
-    spacing: { after: 40 },
+    spacing: { after: gap(40, sp) },
     ...paragraphOptions,
     children: renderInlineRuns(text, fontSizeHalfPt, runOptions),
   });
 };
 
-const sectionHeadingParagraph = (title: string, fontSizeHalfPt: number): Paragraph =>
+const sectionHeadingParagraph = (title: string, fontSizeHalfPt: number, sp: DocxSpacing): Paragraph =>
   new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: 160, after: 80 },
+    spacing: { before: gap(160, sp), after: gap(80, sp) },
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000', space: 2 },
     },
     children: [new TextRun({ text: title, bold: true, size: fontSizeHalfPt })],
   });
 
-const bulletParagraph = (highlight: string, fontSizeHalfPt: number): Paragraph =>
+const bulletParagraph = (highlight: string, fontSizeHalfPt: number, sp: DocxSpacing): Paragraph =>
   new Paragraph({
     bullet: { level: 0 },
-    spacing: { after: 20, line: 276 },
+    spacing: { after: gap(20, sp), line: sp.line },
     children: renderInlineRuns(highlight, fontSizeHalfPt),
   });
 
@@ -148,13 +174,14 @@ const bulletParagraph = (highlight: string, fontSizeHalfPt: number): Paragraph =
  * name — the `.entry-org` line in the preview). Everything else in an entry
  * follows the body size, which is what the stylesheet does.
  */
-const workSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
+const workSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of section.workEntries ?? []) {
     paragraphs.push(
       entryHeadingParagraph(
         entry.location ? `${entry.organization}   ${entry.location}` : entry.organization,
         { fontSizeHalfPt: entryHp, rightText: '' },
+        sp,
       ),
     );
     for (const pos of entry.positions) {
@@ -162,17 +189,17 @@ const workSectionParagraphs = (section: ResumeSection, hp: number, entryHp: numb
         entryHeadingParagraph(pos.position, {
           fontSizeHalfPt: hp,
           rightText: formatDateRange(pos.startDate, pos.endDate),
-        }),
+        }, sp),
       );
       for (const highlight of pos.highlights) {
-        if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp));
+        if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp, sp));
       }
     }
   }
   return paragraphs;
 };
 
-const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
+const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.educationEntries ?? []) as EducationEntry[]) {
     const degree = entry.area ? `${entry.studyType} - ${entry.area}` : entry.studyType;
@@ -180,18 +207,19 @@ const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp:
       entryHeadingParagraph(
         entry.location ? `${entry.institution}   ${entry.location}` : entry.institution,
         { fontSizeHalfPt: entryHp, rightText: '' },
+        sp,
       ),
       entryHeadingParagraph(degree, {
         fontSizeHalfPt: hp,
         rightText: formatDateRange(entry.startDate, entry.endDate),
-      }),
+      }, sp),
     );
 
     const honorsLabel = (entry.honorsLabel || '荣誉').trim() || '荣誉';
     if (entry.honors && entry.honors.length > 0) {
       paragraphs.push(
         new Paragraph({
-          spacing: { after: 40 },
+          spacing: { after: gap(40, sp) },
           children: [
             new TextRun({ text: `${honorsLabel}：`, bold: true, size: hp }),
             ...renderInlineRuns(entry.honors.join('，'), hp),
@@ -202,7 +230,7 @@ const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp:
     if (entry.courses && entry.courses.length > 0) {
       paragraphs.push(
         new Paragraph({
-          spacing: { after: 40 },
+          spacing: { after: gap(40, sp) },
           children: [
             new TextRun({ text: '课程：', bold: true, size: hp }),
             ...renderInlineRuns(entry.courses.join('，'), hp),
@@ -211,90 +239,90 @@ const educationSectionParagraphs = (section: ResumeSection, hp: number, entryHp:
       );
     }
     for (const highlight of entry.highlights ?? []) {
-      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp));
+      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp, sp));
     }
   }
   return paragraphs;
 };
 
-const projectSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
+const projectSectionParagraphs = (section: ResumeSection, hp: number, entryHp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.projectEntries ?? []) as ProjectEntry[]) {
-    paragraphs.push(entryHeadingParagraph(entry.name, { fontSizeHalfPt: entryHp, rightText: '' }));
+    paragraphs.push(entryHeadingParagraph(entry.name, { fontSizeHalfPt: entryHp, rightText: '' }, sp));
     paragraphs.push(
       entryHeadingParagraph(entry.affiliation || '', {
         fontSizeHalfPt: hp,
         rightText: formatDateRange(entry.startDate, entry.endDate),
-      }),
+      }, sp),
     );
     for (const highlight of entry.highlights) {
-      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp));
+      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp, sp));
     }
   }
   return paragraphs;
 };
 
-const awardSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const awardSectionParagraphs = (section: ResumeSection, hp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.awardEntries ?? []) as AwardEntry[]) {
     paragraphs.push(
       entryHeadingParagraph(entry.title, {
         fontSizeHalfPt: hp,
         rightText: entry.date,
-      }),
+      }, sp),
     );
     if (entry.issuer || entry.location) {
       const issuer = [entry.issuer, entry.location].filter(Boolean).join(' · ');
-      paragraphs.push(lineParagraph(issuer, hp, { runOptions: { italics: true } }));
+      paragraphs.push(lineParagraph(issuer, hp, sp, { runOptions: { italics: true } }));
     }
     for (const highlight of entry.highlights ?? []) {
-      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp));
+      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp, sp));
     }
   }
   return paragraphs;
 };
 
-const certificateSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const certificateSectionParagraphs = (section: ResumeSection, hp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of (section.certificateEntries ?? []) as CertificateEntry[]) {
     paragraphs.push(
-      entryHeadingParagraph(entry.name, { fontSizeHalfPt: hp, rightText: entry.date }),
+      entryHeadingParagraph(entry.name, { fontSizeHalfPt: hp, rightText: entry.date }, sp),
     );
     const parts: string[] = [];
     if (entry.issuer) parts.push(entry.issuer);
     if (entry.certId) parts.push(`ID: ${entry.certId}`);
     if (parts.length > 0) {
-      paragraphs.push(lineParagraph(parts.join(' · '), hp, { runOptions: { italics: true } }));
+      paragraphs.push(lineParagraph(parts.join(' · '), hp, sp, { runOptions: { italics: true } }));
     }
   }
   return paragraphs;
 };
 
-const affiliationSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const affiliationSectionParagraphs = (section: ResumeSection, hp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
   for (const entry of section.affiliationEntries ?? []) {
-    paragraphs.push(entryHeadingParagraph(entry.organization, { fontSizeHalfPt: hp, rightText: '' }));
+    paragraphs.push(entryHeadingParagraph(entry.organization, { fontSizeHalfPt: hp, rightText: '' }, sp));
     paragraphs.push(
       entryHeadingParagraph(entry.position, {
         fontSizeHalfPt: hp,
         rightText: formatDateRange(entry.startDate, entry.endDate),
-      }),
+      }, sp),
     );
     for (const highlight of entry.highlights ?? []) {
-      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp));
+      if (highlight.trim()) paragraphs.push(bulletParagraph(highlight, hp, sp));
     }
   }
   return paragraphs;
 };
 
-const skillsSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] => {
+const skillsSectionParagraphs = (section: ResumeSection, hp: number, sp: DocxSpacing): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
 
   if (section.languages && section.languages.length > 0) {
     const langStr = section.languages.map((l) => `${l.language} (${l.fluency})`).join('，');
     paragraphs.push(
       new Paragraph({
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [
           new TextRun({ text: '语言：', bold: true, size: hp }),
           ...renderInlineRuns(langStr, hp),
@@ -306,7 +334,7 @@ const skillsSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[
   for (const group of sanitizeSkillGroups(section.skillGroups)) {
     paragraphs.push(
       new Paragraph({
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [
           new TextRun({ text: `${group.category}：`, bold: true, size: hp }),
           ...renderInlineRuns(group.skills.join('，'), hp),
@@ -318,7 +346,7 @@ const skillsSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[
   if (section.interests && section.interests.length > 0) {
     paragraphs.push(
       new Paragraph({
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [
           new TextRun({ text: '兴趣爱好：', bold: true, size: hp }),
           new TextRun({ text: section.interests.join('，'), size: hp }),
@@ -330,30 +358,30 @@ const skillsSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[
   return paragraphs;
 };
 
-const customSectionParagraphs = (section: ResumeSection, hp: number): Paragraph[] =>
+const customSectionParagraphs = (section: ResumeSection, hp: number, sp: DocxSpacing): Paragraph[] =>
   (section.items ?? [])
     .map((item) => item.text.trim())
     .filter(Boolean)
-    .map((text) => lineParagraph(text, hp, { spacing: { after: 60 } }));
+    .map((text) => lineParagraph(text, hp, sp, { spacing: { after: gap(60, sp) } }));
 
-const sectionParagraphs = (section: ResumeSection, hp: number, entryHp: number): Paragraph[] => {
+const sectionParagraphs = (section: ResumeSection, hp: number, entryHp: number, sp: DocxSpacing): Paragraph[] => {
   switch (section.type) {
     case 'work':
-      return workSectionParagraphs(section, hp, entryHp);
+      return workSectionParagraphs(section, hp, entryHp, sp);
     case 'education':
-      return educationSectionParagraphs(section, hp, entryHp);
+      return educationSectionParagraphs(section, hp, entryHp, sp);
     case 'project':
-      return projectSectionParagraphs(section, hp, entryHp);
+      return projectSectionParagraphs(section, hp, entryHp, sp);
     case 'awards':
-      return awardSectionParagraphs(section, hp);
+      return awardSectionParagraphs(section, hp, sp);
     case 'certs':
-      return certificateSectionParagraphs(section, hp);
+      return certificateSectionParagraphs(section, hp, sp);
     case 'affiliations':
-      return affiliationSectionParagraphs(section, hp);
+      return affiliationSectionParagraphs(section, hp, sp);
     case 'skills':
-      return skillsSectionParagraphs(section, hp);
+      return skillsSectionParagraphs(section, hp, sp);
     default:
-      return customSectionParagraphs(section, hp);
+      return customSectionParagraphs(section, hp, sp);
   }
 };
 
@@ -414,7 +442,7 @@ interface HeaderLines {
   photo?: { run: ImageRun; width: number };
 }
 
-const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
+const buildHeader = (resume: ResumeState, nameHalfPt: number, sp: DocxSpacing): HeaderLines => {
   const { personal } = resume;
   const headerAlignment = resume.headerAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
   const contactItems: string[] = [];
@@ -435,7 +463,7 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
     nameLines.push(
       new Paragraph({
         alignment: headerAlignment,
-        spacing: { after: 80 },
+        spacing: { after: gap(80, sp) },
         children: [new TextRun({ text: personal.name, bold: true, size: nameHalfPt })],
       }),
     );
@@ -445,7 +473,7 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
     nameLines.push(
       new Paragraph({
         alignment: headerAlignment,
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [new TextRun({ text: personal.titles.join(' / '), italics: true, size: scaledPt(13, resume.fontSizePt) })],
       }),
     );
@@ -455,7 +483,7 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
     nameLines.push(
       new Paragraph({
         alignment: headerAlignment,
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [new TextRun({ text: locationStr, size: scaledPt(11, resume.fontSizePt) })],
       }),
     );
@@ -465,7 +493,7 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
     nameLines.push(
       new Paragraph({
         alignment: headerAlignment,
-        spacing: { after: 40 },
+        spacing: { after: gap(40, sp) },
         children: [new TextRun({ text: contactItems.join('  ◆  '), size: scaledPt(11, resume.fontSizePt) })],
       }),
     );
@@ -474,7 +502,7 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
   if (personal.summary && resume.showSummary) {
     nameLines.push(
       new Paragraph({
-        spacing: { after: 60 },
+        spacing: { after: gap(60, sp) },
         children: renderInlineRuns(personal.summary, scaledPt(11, resume.fontSizePt)),
       }),
     );
@@ -485,10 +513,22 @@ const buildHeader = (resume: ResumeState, nameHalfPt: number): HeaderLines => {
 
 export const buildResumeDocx = async (resume: ResumeState): Promise<Document> => {
   const scale = resolveResumeTypeScale(resume);
+  const density = resolveResumeSpacing(resume);
   const hp = halfPt(scale.bodyPt);
   const entryHp = halfPt(scale.entryPt);
   const sectionHp = halfPt(scale.sectionPt);
-  const { nameLines } = buildHeader(resume, halfPt(scale.namePt));
+  // docx has no stylesheet, so the density the preview gets from CSS custom
+  // properties is recomputed here. `line: 276` was the hard-coded 1.15 line
+  // spacing; it scales with the same ratio as the CSS `line-height`. The page
+  // margin scales from docx's own 14mm (which is already 2mm looser than the
+  // preview's 12mm — a pre-existing difference this change does not touch).
+  const spacingFactor = resume.spacing ?? 1;
+  const sp: DocxSpacing = {
+    scale: spacingFactor,
+    line: Math.round(276 * (density.lineHeight / BASE_SPACING.lineHeight)),
+    pageMarginY: convertMillimetersToTwip(14 * spacingFactor),
+  };
+  const { nameLines } = buildHeader(resume, halfPt(scale.namePt), sp);
 
   // Header paragraph list: with a visible photo, preview switches to a
   // two-column grid (text left, photo right); approximate with a borderless
@@ -532,8 +572,8 @@ export const buildResumeDocx = async (resume: ResumeState): Promise<Document> =>
   for (const section of resume.sections) {
     if (!section.visible) continue;
     if (!hasSectionContent(section)) continue;
-    sectionParagraphList.push(sectionHeadingParagraph(section.title, sectionHp));
-    sectionParagraphList.push(...sectionParagraphs(section, hp, entryHp));
+    sectionParagraphList.push(sectionHeadingParagraph(section.title, sectionHp, sp));
+    sectionParagraphList.push(...sectionParagraphs(section, hp, entryHp, sp));
   }
 
   const section: ISectionOptions = {
@@ -541,8 +581,8 @@ export const buildResumeDocx = async (resume: ResumeState): Promise<Document> =>
       page: {
         size: PAGE_SIZE,
         margin: {
-          top: convertMillimetersToTwip(14),
-          bottom: convertMillimetersToTwip(14),
+          top: sp.pageMarginY,
+          bottom: sp.pageMarginY,
           left: convertMillimetersToTwip(14),
           right: convertMillimetersToTwip(14),
         },

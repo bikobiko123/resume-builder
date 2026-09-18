@@ -1,12 +1,15 @@
 import {
   MAX_LEVEL_FONT_SIZE_PT,
   MAX_RESUME_FONT_SIZE_PT,
+  MAX_RESUME_SPACING,
   MIN_LEVEL_FONT_SIZE_PT,
   MIN_RESUME_FONT_SIZE_PT,
+  MIN_RESUME_SPACING,
   normalizeLevelFontSize,
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
+  normalizeResumeSpacing,
   type AffiliationEntry,
   type AwardEntry,
   type CertificateEntry,
@@ -432,6 +435,21 @@ export const normalizeResume = (raw: unknown): NormalizeResult => {
   const sectionPt = levelFontSize('sectionPt');
   const entryPt = levelFontSize('entryPt');
 
+  // 紧凑度：缺省 = 默认间距。只校验真的写了的值。
+  let spacing: number | undefined;
+  if (raw.spacing !== undefined && raw.spacing !== null) {
+    const numeric = Number(raw.spacing);
+    if (!Number.isFinite(numeric)) {
+      normalizer.warn('/spacing', '不是数字，已改为默认间距');
+    } else if (numeric < MIN_RESUME_SPACING || numeric > MAX_RESUME_SPACING) {
+      normalizer.warn(
+        '/spacing',
+        `超出 ${MIN_RESUME_SPACING}-${MAX_RESUME_SPACING}，已收敛为 ${Math.min(MAX_RESUME_SPACING, Math.max(MIN_RESUME_SPACING, numeric))}`,
+      );
+    }
+    spacing = normalizeResumeSpacing(raw.spacing);
+  }
+
   const visibility = {
     showPhoto: normalizer.bool(raw.showPhoto, '/showPhoto', false),
     showName: normalizer.bool(raw.showName, '/showName', true),
@@ -453,6 +471,7 @@ export const normalizeResume = (raw: unknown): NormalizeResult => {
     namePt,
     sectionPt,
     entryPt,
+    spacing,
     fontFamily: normalizedFontFamily,
     headerAlignment: normalizedHeaderAlignment,
     ...visibility,

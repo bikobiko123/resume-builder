@@ -200,3 +200,69 @@ describe('Word 导出 —— 分层字号', () => {
     expect(sizeOfRunContaining(docXml, '教育背景')).toBe(260);
   });
 });
+
+describe('Word 导出 —— 留白紧凑度', () => {
+  const afterValues = (docXml: string): string[] =>
+    [...new Set([...docXml.matchAll(/<w:spacing w:after="(\d+)"\/>/gu)].map((m) => m[1]))].sort();
+
+  const build = async (spacing?: number): Promise<string> => {
+    const resume = createDefaultResumeState();
+    resume.personal.name = '张三';
+    const work = createResumeSection('work');
+    work.id = 'sec-work';
+    work.title = '工作经历';
+    work.workEntries = [{
+      id: 'w1',
+      organization: '有点公司',
+      location: '上海',
+      positions: [{
+        id: 'p1',
+        position: '增长负责人',
+        startDate: '2022-03',
+        endDate: 'present',
+        highlights: ['做了一些事'],
+      }],
+    }];
+    resume.sections = [work];
+    if (spacing !== undefined) resume.spacing = spacing;
+    return extractDocumentXml(resume);
+  };
+
+  it('不设紧凑度时，间距和改动前逐字节一致', async () => {
+    const docXml = await build();
+
+    expect(docXml).toContain('<w:spacing w:after="80"/>');
+    expect(docXml).toContain('<w:spacing w:after="40"/>');
+    expect(docXml).toContain('w:line="276"');
+    // 14mm ≈ 793 twips，上下左右都是
+    const pgMar = docXml.match(/<w:pgMar[^/]*\/>/u)?.[0] ?? '';
+    expect(pgMar).toMatch(/w:top="793"/u);
+    expect(pgMar).toMatch(/w:bottom="793"/u);
+  });
+
+  it('设了就按同一个系数收紧段落间距与上下页边距', async () => {
+    const docXml = await build(0.85);
+
+    // 40 → 34，60 → 51，80 → 68
+    expect(afterValues(docXml)).toContain('34');
+    expect(docXml).toContain('<w:spacing w:after="68"/>');
+    expect(docXml).toContain('<w:spacing w:after="51"/>');
+    // 行距跟着 CSS 的比例走：1.34 / 1.4 × 276 = 264。docx 会把它和 after 合并进
+    // 同一个 <w:spacing/>，所以只能断言属性本身。
+    expect(docXml).toContain('w:line="264"');
+    // 上下 14mm × 0.85 ≈ 11.9mm ≈ 674 twips
+    const pgMar = docXml.match(/<w:pgMar[^/]*\/>/u)?.[0] ?? '';
+    expect(pgMar).toMatch(/w:top="674"/u);
+    expect(pgMar).toMatch(/w:bottom="674"/u);
+    // 左右不动 —— 收窄它们只改换行点，省不下垂直空间
+    expect(pgMar).toMatch(/w:left="793"/u);
+    expect(pgMar).toMatch(/w:right="793"/u);
+  });
+
+  it('系数越小间距越小，单调', async () => {
+    const [full, mid, tight] = await Promise.all([build(), build(0.9), build(0.75)]);
+    const first = (x: string) => Number([...x.matchAll(/<w:spacing w:after="(\d+)"\/>/gu)][0][1]);
+    expect(first(full)).toBeGreaterThan(first(mid));
+    expect(first(mid)).toBeGreaterThan(first(tight));
+  });
+});

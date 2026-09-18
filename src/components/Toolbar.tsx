@@ -5,9 +5,12 @@ import {
   MAX_RESUME_FONT_SIZE_PT,
   MIN_LEVEL_FONT_SIZE_PT,
   MIN_RESUME_FONT_SIZE_PT,
+  MIN_RESUME_SPACING,
+  MAX_RESUME_SPACING,
   type ResumeFontFamily,
   type ResumeHeaderAlignment,
   type ResumeLevelKey,
+  type ResumeSpacing,
   type ResumeTypeScale,
 } from '../types/resume';
 import { RESUME_FONT_OPTIONS } from '../lib/fonts';
@@ -35,6 +38,10 @@ interface ToolbarProps {
   typeScale: ResumeTypeScale;
   /** `pt` 为 `undefined` 表示恢复「跟随正文」。 */
   onLevelFontSizeChange: (level: ResumeLevelKey, pt: number | undefined) => void;
+  /** 留白换算后的实际值，含「是不是默认间距」。 */
+  spacing: ResumeSpacing;
+  /** `undefined` 表示恢复默认间距。 */
+  onSpacingChange: (spacing: number | undefined) => void;
   fontFamily: ResumeFontFamily;
   onFontFamilyChange: (fontFamily: ResumeFontFamily) => void;
   headerAlignment: ResumeHeaderAlignment;
@@ -81,6 +88,8 @@ const Toolbar = ({
   onFontSizeChange,
   typeScale,
   onLevelFontSizeChange,
+  spacing,
+  onSpacingChange,
   fontFamily,
   onFontFamilyChange,
   headerAlignment,
@@ -154,14 +163,16 @@ const Toolbar = ({
           <input type="range" min={MIN_RESUME_FONT_SIZE_PT} max={MAX_RESUME_FONT_SIZE_PT} step="0.1" value={fontSizePt} onChange={(event) => onFontSizeChange(Number(event.target.value))} aria-label="调整正文字号" />
         </label>
         {/*
-          A popover rather than three more sliders in the bar: the toolbar is
-          already at its width budget, and these are tuned occasionally to buy
-          vertical space rather than dragged continuously.
+          A popover rather than more sliders in the bar: the toolbar is already
+          at its width budget, and these are tuned occasionally to buy vertical
+          space rather than dragged continuously.
         */}
         <details className="level-size-control">
-          <summary aria-label="调整各层级字号">
-            层级字号
-            {LEVEL_ROWS.some((row) => !typeScale.following[row.key]) ? <span className="level-size-dot" aria-hidden="true" /> : null}
+          <summary aria-label="调整字号与间距">
+            字号与间距
+            {LEVEL_ROWS.some((row) => !typeScale.following[row.key]) || !spacing.isDefault
+              ? <span className="level-size-dot" aria-hidden="true" />
+              : null}
           </summary>
           <div className="level-size-popover">
             <p className="level-size-note">未单独设置时跟随正文，改正文会一起缩放。</p>
@@ -193,6 +204,38 @@ const Toolbar = ({
                 </div>
               );
             })}
+
+            {/*
+              Density is the opposite lever from the font sizes above: it does
+              not change how big the text is, only how close together it sits.
+              Shrinking the body font is not the only way to reach one page —
+              this buys back roughly 4× as much height as squeezing the headings
+              does, without touching a single word size.
+            */}
+            <div className="level-size-divider" />
+            <p className="level-size-note">往下调只压行距与留白，字号一点不变。</p>
+            <div className="level-size-row">
+              <span className="level-size-label" title="行距、章节与条目间距、上下页边距">间距</span>
+              <input
+                type="range"
+                min={MIN_RESUME_SPACING * 100}
+                max={MAX_RESUME_SPACING * 100}
+                step="1"
+                value={Math.round(spacing.factor * 100)}
+                onChange={(event) => onSpacingChange(Number(event.target.value))}
+                aria-label="调整行距与留白"
+              />
+              <span className="level-size-value">
+                {Math.round(spacing.factor * 100)}%
+              </span>
+              <button
+                type="button"
+                className="level-size-reset"
+                onClick={() => onSpacingChange(undefined)}
+                disabled={spacing.isDefault}
+                title={spacing.isDefault ? '已经是默认间距' : '改回默认间距'}
+              >默认</button>
+            </div>
           </div>
         </details>
         <span className={isOverflowing ? 'scale-status scale-status-warn' : 'scale-status'}>

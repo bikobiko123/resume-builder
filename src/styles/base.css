@@ -291,6 +291,13 @@ p {
   opacity: .5;
 }
 
+/* 字号档和间距档之间的分隔线 —— 两者是正交的两条杠杆，视觉上要分开。 */
+.level-size-divider {
+  height: 1px;
+  margin: 2px 0;
+  background: #e4e8e5;
+}
+
 .scale-status-warn {
   color: #8a4b12;
   background: #ffeed8;

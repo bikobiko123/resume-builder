@@ -33,13 +33,20 @@
   position: relative;
 }
 
+/*
+ * Spacing variables. Same contract as the per-level sizes above: the fallbacks
+ * are the original hard-coded values and must stay in step with `BASE_SPACING`
+ * in `src/types/resume.ts` (pinned by `src/tests/a4Css.test.ts`). When the
+ * density control is untouched the variables are not emitted at all, so every
+ * pre-existing resume lays out exactly as it did.
+ */
 .a4-content {
   width: 100%;
   min-height: 100%;
-  padding: 12mm 14mm;
+  padding: var(--resume-page-gap-y, 12mm) 14mm;
   color: #000;
   font-size: var(--resume-font-size, 9.5pt);
-  line-height: 1.4;
+  line-height: var(--resume-line-height, 1.4);
   font-family: var(--resume-font-family, 'Source Han Serif SC', 'Source Han Serif CN', 'Songti SC', 'Noto Serif SC', STSong, SimSun, serif);
   font-synthesis: none;
   font-variant-numeric: tabular-nums;
@@ -110,7 +117,7 @@
 .resume-summary {
   font-size: 1em;
   color: #333;
-  line-height: 1.42;
+  line-height: var(--resume-line-height, 1.42);
   margin-top: 1.5mm;
   text-align: left;
 }
@@ -171,7 +178,7 @@
 
 /* Sections */
 .resume-section {
-  margin-top: 3mm;
+  margin-top: var(--resume-section-gap, 3mm);
 }
 
 .resume-section h2 {
@@ -186,7 +193,7 @@
 
 /* Entry layout (work, education, project, etc.) */
 .entry {
-  margin-bottom: 2.2mm;
+  margin-bottom: var(--resume-block-gap, 2.2mm);
   break-inside: avoid;
 }
 
@@ -243,8 +250,8 @@
 
 .entry-highlights li {
   font-size: 1em;
-  line-height: 1.4;
-  margin-bottom: 0.8mm;
+  line-height: var(--resume-line-height, 1.4);
+  margin-bottom: var(--resume-item-gap, 0.8mm);
   color: #000;
   padding-left: 1px;
 }
@@ -272,7 +279,7 @@
 /* Skills section */
 .skills-content {
   font-size: 1em;
-  line-height: 1.42;
+  line-height: var(--resume-line-height, 1.42);
 }
 
 .skill-category {
@@ -314,7 +321,7 @@
 /* Custom section (fallback) */
 .custom-content {
   font-size: 1em;
-  line-height: 1.4;
+  line-height: var(--resume-line-height, 1.4);
 }
 
 /* Print styles */
@@ -382,7 +389,9 @@
     border: 0;
   }
 
+  /* Must read the same variable as the preview, or the printed page and the
+     on-screen page would disagree about how much room the content has. */
   .a4-content {
-    padding: 12mm 14mm;
+    padding: var(--resume-page-gap-y, 12mm) 14mm;
   }
 }

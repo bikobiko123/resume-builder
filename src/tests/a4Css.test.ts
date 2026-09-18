@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { RESUME_LEVEL_RATIOS } from '../types/resume';
+import { RESUME_LEVEL_RATIOS, BASE_SPACING } from '../types/resume';
 
 /**
  * Guards on `a4.css` for the two ways the preview can silently stop matching the
@@ -85,5 +85,29 @@ describe('a4.css — the preview sheet keeps the print layout', () => {
         new RegExp(`font-size:\\s*var\\(${variable},\\s*${ratio}em\\)`, 'u'),
       );
     }
+  });
+
+  it('各项间距的兜底值等于 BASE_SPACING', () => {
+    // 同理：紧凑度滑块不动（字段缺省）时，所有人拿到的就是这些数。
+    expect(ruleFor('.a4-content')).toMatch(
+      new RegExp(`padding:\\s*var\\(--resume-page-gap-y,\\s*${BASE_SPACING.pagePaddingMm}mm\\)\\s+14mm`, 'u'),
+    );
+    expect(ruleFor('.a4-content')).toMatch(
+      new RegExp(`line-height:\\s*var\\(--resume-line-height,\\s*${BASE_SPACING.lineHeight}\\)`, 'u'),
+    );
+    expect(ruleFor('.entry-highlights li')).toMatch(
+      new RegExp(`margin-bottom:\\s*var\\(--resume-item-gap,\\s*${BASE_SPACING.itemGapMm}mm\\)`, 'u'),
+    );
+    expect(ruleFor('.entry')).toMatch(
+      new RegExp(`margin-bottom:\\s*var\\(--resume-block-gap,\\s*${BASE_SPACING.blockGapMm}mm\\)`, 'u'),
+    );
+    expect(ruleFor('.resume-section')).toMatch(
+      new RegExp(`margin-top:\\s*var\\(--resume-section-gap,\\s*${BASE_SPACING.sectionGapMm}mm\\)`, 'u'),
+    );
+  });
+
+  it('打印时页边距读同一个变量，否则打印页和屏幕页的可用高度会不一致', () => {
+    const printBlock = css.slice(css.indexOf('@media print'));
+    expect(printBlock).toMatch(/padding:\s*var\(--resume-page-gap-y,\s*12mm\)\s+14mm/u);
   });
 });

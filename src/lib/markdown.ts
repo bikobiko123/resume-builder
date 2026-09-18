@@ -16,6 +16,7 @@ import {
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
+  normalizeResumeSpacing,
 } from '../types/resume';
 import { parseSkillGroupLine, sanitizeSkillGroups } from './skills';
 
@@ -41,6 +42,7 @@ export const exportToMarkdown = (resume: ResumeState): string => {
     namePt: resume.namePt,
     sectionPt: resume.sectionPt,
     entryPt: resume.entryPt,
+    spacing: resume.spacing,
     fontFamily: resume.fontFamily,
     headerAlignment: resume.headerAlignment,
     updatedAt: resume.updatedAt,
@@ -312,6 +314,7 @@ export const importFromMarkdown = (content: string): Partial<ResumeState> | null
       namePt: normalizeLevelFontSize(frontmatter.namePt),
       sectionPt: normalizeLevelFontSize(frontmatter.sectionPt),
       entryPt: normalizeLevelFontSize(frontmatter.entryPt),
+      spacing: normalizeResumeSpacing(frontmatter.spacing),
       fontFamily: normalizeResumeFontFamily(frontmatter.fontFamily),
       headerAlignment: normalizeResumeHeaderAlignment(frontmatter.headerAlignment),
       showPhoto: (frontmatter.showPhoto as boolean) ?? false,

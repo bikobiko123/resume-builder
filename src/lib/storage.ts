@@ -5,6 +5,7 @@ import {
   normalizeResumeFontFamily,
   normalizeResumeFontSize,
   normalizeResumeHeaderAlignment,
+  normalizeResumeSpacing,
   type ResumeState,
 } from '../types/resume';
 
@@ -133,6 +134,7 @@ const normalizeResume = (input: ResumeState): ResumeState => {
     namePt: normalizeLevelFontSize(input.namePt),
     sectionPt: normalizeLevelFontSize(input.sectionPt),
     entryPt: normalizeLevelFontSize(input.entryPt),
+    spacing: normalizeResumeSpacing(input.spacing),
     fontFamily: normalizeResumeFontFamily(input.fontFamily),
     headerAlignment: normalizeResumeHeaderAlignment(input.headerAlignment),
     showPhoto: input.showPhoto ?? false,

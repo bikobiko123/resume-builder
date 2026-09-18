@@ -214,3 +214,27 @@ describe('normalizeResume —— 分层字号', () => {
     expect(warnings.some((line) => line.startsWith('/entryPt'))).toBe(false);
   });
 });
+
+describe('normalizeResume —— 留白紧凑度', () => {
+  const bare = { personal: { name: '张三' }, sections: [] };
+
+  it('没写就是不设，不算警告', () => {
+    const { resume, warnings } = normalizeResume(bare);
+    expect(resume.spacing).toBeUndefined();
+    expect(warnings.some((line) => line.startsWith('/spacing'))).toBe(false);
+  });
+
+  it('非数字改为默认间距、越界收敛并报警', () => {
+    const broken = normalizeResume({ ...bare, spacing: '紧' });
+    expect(broken.resume.spacing).toBeUndefined();
+    expect(broken.warnings.some((line) => line.startsWith('/spacing'))).toBe(true);
+
+    const tooTight = normalizeResume({ ...bare, spacing: 0.3 });
+    expect(tooTight.resume.spacing).toBe(0.75);
+    expect(tooTight.warnings.some((line) => line.startsWith('/spacing'))).toBe(true);
+
+    const fine = normalizeResume({ ...bare, spacing: 0.9 });
+    expect(fine.resume.spacing).toBe(0.9);
+    expect(fine.warnings.some((line) => line.startsWith('/spacing'))).toBe(false);
+  });
+});

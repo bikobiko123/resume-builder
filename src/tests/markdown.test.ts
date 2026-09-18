@@ -75,3 +75,30 @@ entryPt: 10.5
     expect(result?.entryPt).toBe(10.5);
   });
 });
+
+describe('importFromMarkdown —— 留白紧凑度', () => {
+  const withSpacing = `---
+type: resume
+name: 测试用户
+fontSizePt: 10
+spacing: 0.85
+---`;
+
+  it('往返保留设过的紧凑度，100% 折回缺省', () => {
+    const tight = importFromMarkdown(`${withSpacing}
+
+# 测试用户
+`);
+    expect(tight?.spacing).toBe(0.85);
+
+    const full = importFromMarkdown(`---
+type: resume
+name: 测试用户
+spacing: 1
+---
+
+# 测试用户
+`);
+    expect(full?.spacing).toBeUndefined();
+  });
+});

@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BASE_SPACING,
   DEFAULT_RESUME_FONT_SIZE_PT,
+  DEFAULT_RESUME_SPACING,
   MAX_LEVEL_FONT_SIZE_PT,
   MIN_LEVEL_FONT_SIZE_PT,
+  MIN_RESUME_SPACING,
   RESUME_LEVEL_RATIOS,
   createDefaultResumeState,
   normalizeLevelFontSize,
+  normalizeResumeSpacing,
+  resolveResumeSpacing,
   resolveResumeTypeScale,
   type ResumeState,
 } from '../types/resume';
@@ -88,5 +93,72 @@ describe('分层字号 —— 预览与出稿共用同一组 CSS 变量', () => 
     for (const declaration of ['--resume-name-size: 19pt', '--resume-section-size: 12pt', '--resume-entry-size: 10.5pt']) {
       expect(html).toContain(declaration);
     }
+  });
+});
+
+describe('留白紧凑度 —— 缺省即默认间距，不是某个具体系数', () => {
+  it('不设时各项就是 a4.css 里写死的基准值', () => {
+    const spacing = resolveResumeSpacing(createDefaultResumeState());
+
+    expect(spacing.factor).toBe(DEFAULT_RESUME_SPACING);
+    expect(spacing.lineHeight).toBe(BASE_SPACING.lineHeight);
+    expect(spacing.pagePaddingMm).toBe(BASE_SPACING.pagePaddingMm);
+    expect(spacing.blockGapMm).toBe(BASE_SPACING.blockGapMm);
+    expect(spacing.itemGapMm).toBe(BASE_SPACING.itemGapMm);
+    expect(spacing.sectionGapMm).toBe(BASE_SPACING.sectionGapMm);
+    expect(spacing.isDefault).toBe(true);
+  });
+
+  it('系数按同一比例缩放留白，行距则收到 1.3 为止', () => {
+    const spacing = resolveResumeSpacing(resumeWith({ spacing: 0.85 }));
+
+    expect(spacing.lineHeight).toBe(1.34);
+    expect(spacing.pagePaddingMm).toBe(10.2);
+    expect(spacing.blockGapMm).toBe(1.87);
+    expect(spacing.itemGapMm).toBe(0.68);
+    expect(spacing.sectionGapMm).toBe(2.55);
+    expect(spacing.isDefault).toBe(false);
+
+    // 拉到底：行距正好停在 1.3，留白是基准的 75%
+    const tightest = resolveResumeSpacing(resumeWith({ spacing: MIN_RESUME_SPACING }));
+    expect(tightest.lineHeight).toBe(1.3);
+    expect(tightest.pagePaddingMm).toBe(BASE_SPACING.pagePaddingMm * MIN_RESUME_SPACING);
+  });
+
+  it('归一化把坏值折回「默认」，把越界的值收敛到边界', () => {
+    expect(normalizeResumeSpacing(undefined)).toBeUndefined();
+    expect(normalizeResumeSpacing(null)).toBeUndefined();
+    expect(normalizeResumeSpacing('紧一点')).toBeUndefined();
+    expect(normalizeResumeSpacing(Number.NaN)).toBeUndefined();
+    // 恰好 1.0 必须等于缺省，否则「拖到 100% 再拖回来」会留下和默认差之毫厘的值
+    expect(normalizeResumeSpacing(1)).toBeUndefined();
+    expect(normalizeResumeSpacing(1.5)).toBeUndefined();
+    expect(normalizeResumeSpacing(0.5)).toBe(MIN_RESUME_SPACING);
+    expect(normalizeResumeSpacing(0.912)).toBe(0.91);
+  });
+
+  it('缺省时不输出间距变量，让 a4.css 的兜底值生效', () => {
+    const variables = resumeCssVariables(createDefaultResumeState());
+
+    expect(variables['--resume-line-height']).toBeUndefined();
+    expect(variables['--resume-page-gap-y']).toBeUndefined();
+    expect(variables['--resume-block-gap']).toBeUndefined();
+    expect(variables['--resume-item-gap']).toBeUndefined();
+    expect(variables['--resume-section-gap']).toBeUndefined();
+  });
+
+  it('设过之后以具体值输出，预览和出稿拿到的是同一份', () => {
+    const resume = resumeWith({ spacing: 0.85 });
+    const variables = resumeCssVariables(resume);
+
+    expect(variables['--resume-line-height']).toBe('1.34');
+    expect(variables['--resume-page-gap-y']).toBe('10.2mm');
+    expect(variables['--resume-block-gap']).toBe('1.87mm');
+    expect(variables['--resume-item-gap']).toBe('0.68mm');
+    expect(variables['--resume-section-gap']).toBe('2.55mm');
+
+    const html = renderResumeDocument(resume, { css: '' });
+    expect(html).toContain(`style="${resumeCssVariableStyle(resume)}"`);
+    expect(html).toContain('--resume-line-height: 1.34');
   });
 });

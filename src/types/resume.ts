@@ -163,6 +163,14 @@ export interface ResumeState {
   namePt?: number;
   sectionPt?: number;
   entryPt?: number;
+  /**
+   * 留白紧凑度：行距与各处间距的缩放系数，1.0 = `a4.css` 原本的值。
+   *
+   * 缺省（`undefined`）就是 1.0，走 CSS 的兜底值，存量简历排版不变。
+   * 字号和间距是两条正交的杠杆 —— 字号决定字多大，这个决定字挨得多近；
+   * 想把正文调大一点又不想超出一页时，收这个比缩字号有效得多。
+   */
+  spacing?: number;
   fontFamily: ResumeFontFamily;
   headerAlignment: ResumeHeaderAlignment;
   // User preferences - visibility toggles for personal info sections
@@ -270,6 +278,76 @@ export const resolveResumeTypeScale = (resume: ResumeState): ResumeTypeScale => 
       section: manual.section === undefined,
       entry: manual.entry === undefined,
     },
+  };
+};
+
+// ---------- 留白紧凑度 ----------
+
+export const MIN_RESUME_SPACING = 0.75;
+export const MAX_RESUME_SPACING = 1;
+export const DEFAULT_RESUME_SPACING = 1;
+
+/**
+ * 归一化紧凑度。
+ *
+ * 返回 `undefined` 表示「默认间距」：字段缺失、`null`、不是数字、或者**恰好等于
+ * 1.0** 时都归到这一档 —— 填一个显式的 1.0 和缺省必须完全等价，否则「拖到 100%
+ * 再拖回来」会留下一串和默认值差之毫厘的间距，排版看着一样却再也回不到原样。
+ */
+export const normalizeResumeSpacing = (value: unknown): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return undefined;
+  const clamped = Math.min(MAX_RESUME_SPACING, Math.max(MIN_RESUME_SPACING, numeric));
+  const rounded = Number(clamped.toFixed(2));
+  return rounded >= MAX_RESUME_SPACING ? undefined : rounded;
+};
+
+/** 间距各项的实际取值。系数为 1 时就是 `a4.css` 里写死的那些数。 */
+export interface ResumeSpacing {
+  /** 滑块上的那个值本身，0.75–1.0。UI 要拿它回填。 */
+  factor: number;
+  /** `line-height` 倍数。基准 1.4，随系数线性收到 1.3 为止。 */
+  lineHeight: number;
+  /** `.a4-content` 上下内边距，mm。左右不受影响 —— 收窄它只改换行点，不省垂直空间。 */
+  pagePaddingMm: number;
+  /** `.entry` 之间，mm。 */
+  blockGapMm: number;
+  /** 同一条目内 bullet 之间，mm。 */
+  itemGapMm: number;
+  /** 章节之间，mm。 */
+  sectionGapMm: number;
+  /** 系数本身就是 1（默认间距）。 */
+  isDefault: boolean;
+}
+
+/** `a4.css` 里写死的基准值。改 CSS 必须同步改这里，`a4Css.test.ts` 会盯着。 */
+export const BASE_SPACING = {
+  lineHeight: 1.4,
+  pagePaddingMm: 12,
+  blockGapMm: 2.2,
+  itemGapMm: 0.8,
+  sectionGapMm: 3,
+} as const;
+
+/**
+ * 行距用 `1 + 0.4 × spacing` 收缩，而不是直接乘系数。
+ *
+ * 行距有物理下限：中文宋体排到 1.3 以下，行与行就开始互相干扰。基准是 1.4，
+ * 而 1.4 走到 1.3 正好是系数从 1.0 走到 0.75 —— 滑块拉到底也不会把行距压坏。
+ * 其余几项是纯粹的留白，线性缩放即可。
+ */
+export const resolveResumeSpacing = (resume: ResumeState): ResumeSpacing => {
+  const factor = resume.spacing ?? DEFAULT_RESUME_SPACING;
+  const mm = (base: number): number => Number((base * factor).toFixed(2));
+  return {
+    factor,
+    lineHeight: Number((1 + (BASE_SPACING.lineHeight - 1) * factor).toFixed(3)),
+    pagePaddingMm: mm(BASE_SPACING.pagePaddingMm),
+    blockGapMm: mm(BASE_SPACING.blockGapMm),
+    itemGapMm: mm(BASE_SPACING.itemGapMm),
+    sectionGapMm: mm(BASE_SPACING.sectionGapMm),
+    isDefault: resume.spacing === undefined,
   };
 };
 
