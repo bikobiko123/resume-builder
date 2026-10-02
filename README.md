@@ -53,7 +53,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YOUR_USERNAME/resume-builder.git
+git clone https://github.com/bikobiko123/resume-builder.git
 cd resume-builder
 
 # 安装依赖
@@ -148,7 +148,7 @@ Chrome / Chromium / Edge，也可以用 `RESUME_CHROME_PATH=/path/to/chrome` 或
 - 云端数据通过 Supabase Auth 按用户隔离，数据库启用 Row Level Security
 - 前端只使用 `VITE_SUPABASE_URL` 和 publishable/anon key，绝不使用 `service_role` key
 - 本地与云端同一人物不一致时以云端为准，本地那份会保留为该人物名下的快照；删除人物会同步删除云端该行
-- 清除浏览器数据不会删除已登录用户的云端简历，但未登录的本地数据仍建议定期用「导出 Markdown」备份
+- 清除浏览器数据不会删除已登录用户的云端简历，但本地数据建议定期用「导出 JSON」做完整备份；Markdown 是有损视图
 
 ## 项目结构
 
@@ -193,3 +193,13 @@ https://bikobiko123.github.io/resume-builder/
 
 - 本项目简历模板设计灵感来自 [imprecv](https://github.com/jskherman/imprecv) - 一个优雅的 Typst 简历模板项目，感谢原作者的出色设计
 - 感谢 React 和 Vite 团队提供的优秀工具
+
+## AI 与云端协作
+
+- 项目用途：网页版简历编辑器与共用排版的 CLI。
+- AI 工作入口：[AGENTS.md](AGENTS.md)。
+- 环境：Node.js 20；npm ci（当前 Pages workflow 使用 Node.js 20，升级需单独验证）。
+- 主要目录：src/（网页与共用排版）、cli/（agent CLI）、bin/resume、SUPABASE.md（可选云同步）。
+- 验证边界：GitHub Pages + 可选 Supabase。measure/PDF 的完整验证需要 Chromium；浏览器测试被跳过时必须说明。
+
+云端任务交付应包含修改说明、实际验证结果和剩余限制；个人本机改动未提交并推送前，云端无法读取。

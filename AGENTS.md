@@ -1,3 +1,39 @@
+# AI 协作入口：resume-builder
+
+项目用途：网页版简历编辑器与共用排版的 CLI。
+
+## 云端工作约定
+
+1. 先读 `README.md`、本文件及目标目录的局部说明，再确认当前分支、工作区变化和任务范围。仓库文档与实际 manifest 不一致时以当前代码为准，并记录差异。
+2. 不假设云端已有本机依赖、浏览器、全局 CLI、绝对路径或认证。按仓库锁文件和 manifest 安装；缺少能力时报告限制。
+3. 用小范围分支和 PR 交付。PR 写清问题、修改、执行过的验证及仍待验证事项；文档存在不等于功能验证通过。
+4. 保留无关工作区改动。修改公共接口时检查消费者，不顺手改部署配置或重构其他模块。
+5. 密钥只从任务环境/secret 配置读取；日志脱敏。使用合成测试数据，不提交个人资料或运行输出。
+
+## 项目地图
+
+src/（网页与共用排版）、cli/（agent CLI）、bin/resume、SUPABASE.md（可选云同步）。
+
+## 环境与验证
+
+Node.js 20；npm ci（当前 Pages workflow 使用 Node.js 20，升级需单独验证）。
+
+```sh
+npm run typecheck
+npm test
+npm run build
+```
+
+## 项目约束
+
+用户简历 JSON 是事实源，Markdown 为有损视图；优先 JSON Patch 小步编辑。排版改动要 measure 并检查 clipped。真实简历、头像、PDF、数据库密钥不提交。保留已有 AGENTS.md 的 CLI 约束。
+
+## 云端验证边界
+
+GitHub Pages + 可选 Supabase。measure/PDF 的完整验证需要 Chromium；浏览器测试被跳过时必须说明。
+
+---
+
 # 简历接口（给 agent 用）
 
 这个仓库有一个网页版简历编辑器，以及一层直接操作简历文档的命令行接口。
@@ -8,8 +44,8 @@
 npm run resume -- --help     # 等价写法
 ```
 
-依赖已经装好；命令用 `tsx` 直接跑 TypeScript，改完即可用，没有构建步骤。
-`measure` 需要一个真实浏览器（本机已装 Chrome）。
+新环境先运行 `npm ci`；CLI 用 `tsx` 直接跑 TypeScript，安装依赖后可直接调用。
+`measure` 需要真实 Chromium；云端不默认已有 Chrome，使用 `RESUME_CHROME_PATH` 或 `--browser` 指定。
 
 ---
 
